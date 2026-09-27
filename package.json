@@ -1,0 +1,36 @@
+{
+  "name": "@urdesigner/frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server/index.mjs",
+    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist/server",
+    "start": "node server/index.mjs --production",
+    "check": "tsc -b",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "format": "prettier --write src server tests *.ts *.json",
+    "format:check": "prettier --check src server tests *.ts *.json"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.5",
+    "@fontsource/kanit": "^5.2.5",
+    "express": "^5.1.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.9.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "prettier": "^3.6.2",
+    "typescript": "~5.9.2",
+    "vite": "^7.1.0",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "framework": null,
+  "buildCommand": "npm run build && mv dist/client/index.html dist/template.html",
+  "outputDirectory": "dist/client",
+  "functions": {
+    "api/render.mjs": { "includeFiles": "dist/**" }
+  },
+  "rewrites": [{ "source": "/:path*", "destination": "/api/render?__path=/:path*" }]
+}

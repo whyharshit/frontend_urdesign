@@ -1,0 +1,88 @@
+/* Readable mobile body copy and comfortable touch targets. Captions stay compact. */
+@media (max-width: 760px) {
+  body {
+    font-size: 16px;
+  }
+  .hero-copy > p,
+  .section-heading p,
+  .how-intro p,
+  .step p,
+  .professional-cta p,
+  .bio-snippet,
+  .profile-section > p,
+  .auth-story > p,
+  .auth-form > p,
+  .flow-sidebar > p,
+  .welcome-banner p,
+  .editor-preview > p,
+  .service-editor-card p,
+  .payment-review p,
+  .prose p {
+    font-size: 16px;
+  }
+  .small,
+  .notice,
+  .checkbox,
+  .field label,
+  .field small,
+  .professional-type,
+  .profile-person,
+  .detail-grid dd,
+  .client-enquiry-header p,
+  .client-enquiry-row p,
+  .client-enquiry-row .button,
+  .enquiry-list-row p,
+  .auth-foot,
+  .masked p,
+  .masked strong,
+  .footer-top p,
+  .footer-top > div > a:not(.brand),
+  .footer-top h4,
+  .search-bottom,
+  .upload-area p,
+  .wallet-hero p {
+    font-size: 14px;
+  }
+  .button {
+    font-size: 14px;
+    min-height: 44px;
+  }
+  .header-actions .button {
+    min-height: 44px;
+  }
+  .sidebar nav a {
+    min-height: 44px;
+    font-size: 12px;
+  }
+  .pack-card p,
+  .pack-card small,
+  .pack-card .button {
+    font-size: 12px;
+  }
+  .hero-search > .button {
+    font-size: 12px;
+  }
+  .service-row p,
+  .service-row > strong {
+    font-size: 14px;
+  }
+  .profile-projects {
+    grid-template-columns: 1fr;
+  }
+  .profile-projects h3 {
+    font-size: 24px;
+  }
+  .profile-projects p,
+  .project-card p {
+    font-size: 12px;
+  }
+  .deliverable-row input {
+    font-size: 16px;
+  }
+  .segmented {
+    flex-wrap: wrap;
+  }
+  .segmented button {
+    min-height: 44px;
+  }
+}
