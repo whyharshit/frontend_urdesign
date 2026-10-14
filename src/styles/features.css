@@ -430,21 +430,9 @@ img.mini-avatar {
 .principles-strip:hover .principles-track {
   animation-play-state: running;
 }
-.strip-star {
-  display: inline-block;
-  transition: transform 0.8s ease;
-}
-.principles-strip:hover .strip-star {
-  animation: spin 6s linear infinite;
-}
 @keyframes marquee {
   to {
     transform: translateX(-100%);
-  }
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 

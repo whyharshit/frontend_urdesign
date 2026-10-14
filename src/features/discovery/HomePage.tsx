@@ -104,9 +104,7 @@ export function HomePage() {
     <div ref={reveal}>
       <section className="hero container">
         <div className="hero-copy">
-          <span className="eyebrow">
-            <span className="tiny-star">✳</span> SPACES WITH SOUL. PEOPLE WITH VISION.
-          </span>
+          <span className="eyebrow">SPACES WITH SOUL. PEOPLE WITH VISION.</span>
           <h1>
             Your space.
             <br />
@@ -195,9 +193,6 @@ export function HomePage() {
               </div>
             ))}
           </div>
-          <span className="strip-star" aria-hidden="true">
-            ✳
-          </span>
         </div>
       </div>
       <section className="section container reveal">

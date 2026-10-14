@@ -70,9 +70,6 @@
   margin-bottom: 20px;
   font-size: 9px;
 }
-.tiny-star {
-  font-size: 20px;
-}
 .hero h1 {
   font-size: clamp(44px, 4.8vw, 65px);
   line-height: 1.05;
@@ -275,11 +272,6 @@
 .principles-strip > div > div > span {
   font: 400 10px var(--body);
   color: var(--accent);
-}
-.strip-star {
-  font-size: 37px;
-  line-height: 1;
-  color: var(--brand);
 }
 .section-heading {
   display: flex;
@@ -1188,9 +1180,6 @@
   }
   .principles-strip > div {
     gap: 15px;
-  }
-  .strip-star {
-    display: none;
   }
   .studio-grid {
     gap: 16px;

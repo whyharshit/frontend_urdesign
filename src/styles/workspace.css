@@ -62,14 +62,8 @@
   border-radius: 4px;
   padding: 18px;
 }
-.small-symbol {
-  color: var(--brand);
-  font-size: 30px;
-  line-height: 1;
-}
 .sidebar-help h4 {
   font-size: 21px;
-  margin-top: 12px;
 }
 .sidebar-help p {
   margin-top: 10px;

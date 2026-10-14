@@ -74,7 +74,6 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
         <div className="sidebar-bottom">
           {IS_STAGING && (
             <div className="sidebar-help">
-              <span className="small-symbol">✳</span>
               <h4>A little help goes a long way.</h4>
               <p>Explore every side of your frontend.</p>
               <Link to="/playground">
