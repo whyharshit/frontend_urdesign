@@ -1,11 +1,35 @@
 import type { DemoState, Professional, SearchFilters } from '../types/domain';
+import { FEE_BANDS } from '../config/catalog';
 import { slugify } from './format';
+
+/** Residential / Commercial: from the projects shown and the services offered. */
+export function worksOn(p: Professional, projectType: string) {
+  const type = projectType.toLowerCase();
+  return (
+    p.projects.some((project) => project.type.toLowerCase() === type) ||
+    p.services.some((s) => s.category.toLowerCase().startsWith(type))
+  );
+}
+export const SORTS = [
+  ['active', 'Recently active'],
+  ['experience', 'Most experienced'],
+  ['projects', 'Most projects'],
+] as const;
 
 export function filterProfessionals(providers: Professional[], filters: Partial<SearchFilters>) {
   return providers
     .filter((p) => {
       if (p.status !== 'published') return false;
-      if (filters.city && slugify(p.city) !== slugify(filters.city)) return false;
+      if (
+        filters.city &&
+        ![p.city, ...(p.workCities || [])].some((c) => slugify(c) === slugify(filters.city!))
+      )
+        return false;
+      if (filters.q) {
+        const q = filters.q.trim().toLowerCase();
+        if (q && !`${p.name} ${p.studio}`.toLowerCase().includes(q)) return false;
+      }
+      if (filters.projectType && !worksOn(p, filters.projectType)) return false;
       if (
         filters.type &&
         slugify(p.type) !== filters.type &&
@@ -29,7 +53,29 @@ export function filterProfessionals(providers: Professional[], filters: Partial<
       }
       return true;
     })
-    .sort((a, b) => b.completeness - a.completeness || b.lastActive.localeCompare(a.lastActive));
+    .sort((a, b) =>
+      filters.sort === 'experience'
+        ? b.years - a.years
+        : filters.sort === 'projects'
+          ? b.projects.length - a.projects.length
+          : b.lastActive.localeCompare(a.lastActive) || b.completeness - a.completeness,
+    );
+}
+
+/** The connect band follows the design fee, so nobody can pick the cheapest band by hand. */
+export function bandForFee(fee: number) {
+  return (
+    FEE_BANDS.find((band) => {
+      const [min, max] = {
+        A: [0, 15000],
+        B: [15000, 40000],
+        C: [40000, 75000],
+        D: [75000, 100000],
+        E: [100000, Infinity],
+      }[band.id] as [number, number];
+      return fee >= min && fee < max;
+    }) || FEE_BANDS[0]
+  );
 }
 
 export function publishChecks(p: Professional) {
@@ -37,7 +83,7 @@ export function publishChecks(p: Professional) {
     { label: 'Verify your mobile number', done: p.mobileVerified, to: '/dashboard/profile#mobile' },
     { label: 'Add your full name', done: p.name.trim().length >= 2, to: '/dashboard/profile#name' },
     { label: 'Choose your professional type', done: !!p.type, to: '/dashboard/profile#type' },
-    { label: 'Choose your city', done: !!p.city, to: '/dashboard/profile#city' },
+    { label: 'Choose your city', done: !!p.city.trim(), to: '/dashboard/profile#city' },
     {
       label: 'Tell clients about your practice (at least 40 characters)',
       done: p.bio.trim().length >= 40,

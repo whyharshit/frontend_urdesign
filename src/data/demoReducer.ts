@@ -1,6 +1,16 @@
-import type { DemoState, Professional, Proposal, Requirement, Payment } from '../types/domain';
+import type {
+  ClientContact,
+  DemoState,
+  Professional,
+  Proposal,
+  Requirement,
+  Payment,
+  Report,
+} from '../types/domain';
 import { canContact, publishChecks } from '../lib/rules';
 import { OWN_PROVIDER_ID, FEE_BANDS, CONNECT_PACKS } from '../config/catalog';
+import { blankProfessional } from './seed';
+import { initialsOf } from '../lib/format';
 
 export type DemoAction =
   | { type: 'hydrate'; state: DemoState }
@@ -22,7 +32,15 @@ export type DemoAction =
       date: string;
     }
   | { type: 'payment'; payment: Payment }
-  | { type: 'verifyPayment'; id: string; approve: boolean; reason: string; date: string };
+  | { type: 'verifyPayment'; id: string; approve: boolean; reason: string; date: string }
+  | { type: 'signup'; phone: string; email: string; date: string }
+  | { type: 'login'; role: 'client'; client: ClientContact }
+  | { type: 'login'; role: 'professional' | 'admin' }
+  | { type: 'logout'; role: 'client' | 'professional' | 'admin' }
+  | { type: 'toggleSave'; providerId: string }
+  | { type: 'report'; report: Report }
+  | { type: 'profileView'; providerId: string; date: string }
+  | { type: 'closeRequirement'; requirementId: string; date: string };
 
 /** In-browser demo transitions only. Production equivalents must be atomic API transactions. */
 export function demoReducer(state: DemoState, action: DemoAction): DemoState {
@@ -73,6 +91,7 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
     }
     case 'profile': {
       const profile = { ...action.profile };
+      profile.initials = initialsOf(profile.studio || profile.name);
       if (profile.status === 'published' && publishChecks(profile).some((check) => !check.done))
         profile.status = 'unpublished';
       return {
@@ -140,30 +159,144 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
           : enquiry.status !== 'proposal_sent')
       )
         return state;
-      const proposal = state.proposals.find((p) => p.enquiryId === enquiry.id);
-      const refund =
-        action.decision === 'declined_by_client' && enquiry.providerId === OWN_PROVIDER_ID
-          ? Math.ceil((proposal?.cost ?? 0) / 2)
-          : 0;
+      // Accepting one proposal tells everyone else on the same project that the client chose someone.
+      const declined =
+        action.decision === 'accepted'
+          ? state.enquiries.filter(
+              (e) =>
+                e.requirementId === enquiry.requirementId &&
+                e.id !== enquiry.id &&
+                e.status === 'proposal_sent',
+            )
+          : action.decision === 'declined_by_client'
+            ? [enquiry]
+            : [];
+      const refunds = declined
+        .filter((e) => e.providerId === OWN_PROVIDER_ID)
+        .map((e) => ({
+          enquiryId: e.id,
+          amount: Math.ceil((state.proposals.find((p) => p.enquiryId === e.id)?.cost ?? 0) / 2),
+        }))
+        .filter((r) => r.amount > 0);
       return {
         ...state,
         enquiries: state.enquiries.map((e) =>
-          e.id === enquiry.id ? { ...e, status: action.decision } : e,
+          e.id === enquiry.id
+            ? { ...e, status: action.decision }
+            : declined.some((d) => d.id === e.id)
+              ? { ...e, status: 'declined_by_client' }
+              : e,
         ),
-        balance: state.balance + refund,
-        ledger: refund
+        balance: state.balance + refunds.reduce((sum, r) => sum + r.amount, 0),
+        ledger: refunds.length
           ? [
-              {
-                id: `refund-${enquiry.id}`,
+              ...refunds.map((r) => ({
+                id: `refund-${r.enquiryId}`,
                 label: 'Client declined · 50% returned',
-                amount: refund,
+                amount: r.amount,
                 date: action.date,
-              },
+              })),
               ...state.ledger,
             ]
           : state.ledger,
       };
     }
+    case 'closeRequirement': {
+      const requirement = state.requirements.find((r) => r.id === action.requirementId);
+      if (!requirement || requirement.closedAt) return state;
+      const closing = state.enquiries.filter(
+        (e) =>
+          e.requirementId === requirement.id &&
+          ['sent', 'viewed', 'proposal_sent'].includes(e.status),
+      );
+      // A professional who already paid for a proposal gets it back in full when the client withdraws.
+      const refunds = closing
+        .filter((e) => e.providerId === OWN_PROVIDER_ID && e.status === 'proposal_sent')
+        .flatMap((e) => state.proposals.filter((p) => p.enquiryId === e.id));
+      return {
+        ...state,
+        requirements: state.requirements.map((r) =>
+          r.id === requirement.id ? { ...r, closedAt: action.date } : r,
+        ),
+        enquiries: state.enquiries.map((e) =>
+          closing.some((c) => c.id === e.id) ? { ...e, status: 'withdrawn' } : e,
+        ),
+        balance: state.balance + refunds.reduce((sum, p) => sum + p.cost, 0),
+        ledger: [
+          ...refunds.map((p) => ({
+            id: `withdrawn-${p.id}`,
+            label: 'Client closed the enquiry · refunded',
+            amount: p.cost,
+            date: action.date,
+          })),
+          ...state.ledger,
+        ],
+      };
+    }
+    case 'signup': {
+      // A new number is a new practice: start from an empty draft, never the sample studio.
+      const ownEnquiries = new Set(
+        state.enquiries.filter((e) => e.providerId === OWN_PROVIDER_ID).map((e) => e.id),
+      );
+      return {
+        ...state,
+        providers: state.providers.map((p) =>
+          p.id === OWN_PROVIDER_ID ? blankProfessional(OWN_PROVIDER_ID) : p,
+        ),
+        enquiries: state.enquiries.filter((e) => !ownEnquiries.has(e.id)),
+        proposals: state.proposals.filter((p) => !ownEnquiries.has(p.enquiryId)),
+        payments: state.payments.filter((p) => p.providerId !== OWN_PROVIDER_ID),
+        contacts: {
+          ...state.contacts,
+          [OWN_PROVIDER_ID]: { phone: action.phone, email: action.email },
+        },
+        views: { ...state.views, [OWN_PROVIDER_ID]: [] },
+        balance: 200,
+        ledger: [
+          {
+            id: `grant-${action.date}`,
+            label: 'Launch joining grant',
+            amount: 200,
+            date: action.date,
+          },
+        ],
+        session: { ...state.session, professional: true },
+      };
+    }
+    case 'login':
+      return {
+        ...state,
+        session:
+          action.role === 'client'
+            ? { ...state.session, client: action.client }
+            : { ...state.session, [action.role]: true },
+      };
+    case 'logout':
+      return {
+        ...state,
+        session:
+          action.role === 'client'
+            ? { ...state.session, client: null }
+            : { ...state.session, [action.role]: false },
+      };
+    case 'toggleSave':
+      return {
+        ...state,
+        saved: state.saved.includes(action.providerId)
+          ? state.saved.filter((id) => id !== action.providerId)
+          : [...state.saved, action.providerId],
+      };
+    case 'report':
+      if (!action.report.reason.trim()) return state;
+      return { ...state, reports: [action.report, ...state.reports] };
+    case 'profileView':
+      return {
+        ...state,
+        views: {
+          ...state.views,
+          [action.providerId]: [...(state.views[action.providerId] || []), action.date].slice(-500),
+        },
+      };
     case 'payment':
       if (
         !CONNECT_PACKS.some(

@@ -1,4 +1,22 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+/** Clients come back by verifying the mobile they enquired with. */
+async function signInClient(page: Page) {
+  await page.goto('/my-enquiries');
+  await page.getByLabel('Mobile number').fill('9812345678');
+  await page.getByRole('button', { name: 'Send code' }).click();
+  await page.getByLabel('Six-digit verification code').fill('123456');
+  await page.getByRole('button', { name: 'Verify & continue' }).click();
+  await expect(page.getByRole('heading', { name: 'My enquiries', level: 1 })).toBeVisible();
+}
+
+async function signInAdmin(page: Page, path = '/admin') {
+  await page.goto(path);
+  await expect(page).toHaveURL(/\/admin\/login/);
+  await page.getByLabel('Admin email').fill('admin@urdesigner.in');
+  await page.getByLabel('Password').fill('UrDesigner@2026');
+  await page.getByRole('button', { name: 'Log in' }).click();
+}
 
 test('discovery is server-rendered and searchable without JavaScript', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
@@ -26,14 +44,14 @@ test('proposal debit, client decision and persistence form a connected journey',
     .fill(
       'We propose a warm and considered interior scheme with natural materials and generous family spaces.',
     );
-  await page.getByLabel('Expected timeline').fill('8–10 weeks');
-  await page.getByLabel('Indicative design fee').fill('₹30,000');
+  await page.getByLabel('Expected timeline').fill('8');
+  await page.getByLabel('Indicative design fee').fill('30000');
   await page.getByRole('button', { name: 'Send · 150 connects', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Send · 150 connects' }).click();
   await expect(page).toHaveURL(/\/dashboard\/enquiries\/e1$/);
   await expect(page.locator('.balance-chip')).toContainText('50');
-  await page.goto('/my-enquiries');
+  await signInClient(page);
   await expect(page.getByRole('link', { name: 'Compare 2 proposals' })).toBeVisible();
   await page.getByRole('link', { name: 'Compare 2 proposals' }).click();
   await expect(page.getByRole('table')).toContainText('Aangan Studio');
@@ -53,7 +71,8 @@ test('pack submission remains pending until admin verifies it', async ({ page })
   await page.getByRole('button', { name: 'Simulate payment submission' }).click();
   await expect(page.getByText('Your submission is with the team.')).toBeVisible();
   await expect(page.locator('.balance-chip')).toContainText('200');
-  await page.getByRole('link', { name: 'admin payment verification' }).click();
+  await signInAdmin(page, '/admin/payments');
+  await expect(page).toHaveURL(/\/admin\/payments$/);
   await page.getByRole('button', { name: 'Verify & credit 300 connects' }).click();
   await page
     .getByRole('dialog')
@@ -106,6 +125,7 @@ test('profile autosave, services and project upload update discovery', async ({ 
 });
 
 test('a reused requirement stays selected through professional discovery', async ({ page }) => {
+  await signInClient(page);
   await page.goto('/architects?requirement=r1');
   await page.getByRole('link', { name: 'View profile' }).nth(2).click();
   await page.getByRole('link', { name: 'Send enquiry', exact: true }).first().click();
@@ -124,6 +144,7 @@ test('core routes load with no console errors, broken images or horizontal overf
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
+  await signInAdmin(page);
   const paths = [
     '/',
     '/architects',
@@ -142,7 +163,11 @@ test('core routes load with no console errors, broken images or horizontal overf
     '/admin',
     '/admin/payments',
     '/admin/enquiries',
+    '/admin/reports',
     '/my-enquiries',
+    '/my-enquiries/saved',
+    '/terms',
+    '/privacy',
   ];
   for (const path of paths) {
     await page.goto(path);
@@ -179,4 +204,62 @@ test('core routes load with no console errors, broken images or horizontal overf
     ).toBe(true);
   }
   expect(errors).toEqual([]);
+});
+
+test('a new professional sets up a profile before reaching the dashboard', async ({ page }) => {
+  await page.goto('/join');
+  await expect(page.getByRole('button', { name: /looking for a designer/i })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Continue to verification' }).click();
+  await expect(page.getByText('Enter a 10-digit mobile number')).toBeVisible();
+  await expect(page.getByText('Enter a valid email')).toBeVisible();
+  await expect(page.getByText('Password needs 8+ characters')).toBeVisible();
+  await page.getByLabel('Mobile number').fill('9000000001');
+  await page.getByLabel('Email address').fill('new@studio.in');
+  await page.getByLabel('Password').fill('a-strong-pass');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Continue to verification' }).click();
+  await page.getByLabel('Six-digit verification code').fill('123456');
+  await page.getByRole('button', { name: 'Verify & continue' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/setup/);
+  await expect(page.getByText('Aarav')).toHaveCount(0);
+  await page.goto('/dashboard');
+  await expect(page).toHaveURL(/\/dashboard\/setup/);
+  await page.getByLabel('Full name').fill('meera shah');
+  await page.getByLabel('Full name').blur();
+  await expect(page.getByLabel('Full name')).toHaveValue('Meera Shah');
+});
+
+test('the enquiry form explains what is wrong and enforces the 20-character rule', async ({
+  page,
+}) => {
+  await page.goto('/enquiry/aangan-studio-ahmedabad');
+  await page.getByLabel('Give your project a name').fill('Kitchen');
+  await page.getByLabel('What would you like to create?').fill('Too short');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByText(/Write at least 20 characters/)).toBeVisible();
+  await expect(page.getByText('A first introduction starts with you.')).toHaveCount(0);
+  const options = await page.getByLabel('Service required').locator('option').allTextContents();
+  expect(options).toEqual([
+    'Architectural Design',
+    'Residential Interior Design',
+    'Space Planning',
+    'Not sure yet',
+  ]);
+});
+
+test('admin is locked and login is for professionals only', async ({ page }) => {
+  await page.goto('/admin');
+  await expect(page).toHaveURL(/\/admin\/login/);
+  await page.goto('/login');
+  await expect(page.getByRole('link', { name: 'Browse professionals' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /looking for a designer/i })).toHaveCount(0);
+  await page.goto('/');
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).not.toContainText(
+    'My enquiries',
+  );
+  await signInClient(page);
+  await expect(page.getByRole('button', { name: /Account menu/ })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toContainText(
+    'My enquiries',
+  );
 });

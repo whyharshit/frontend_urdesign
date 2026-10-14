@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { MapPin, SlidersHorizontal, X, ArrowRight } from 'lucide-react';
+import { MapPin, SlidersHorizontal, X, ArrowRight, Search } from 'lucide-react';
 import { CITIES, PROFESSIONAL_TYPES, SERVICES } from '../../config/catalog';
 import { useDemo } from '../../hooks/useDemo';
-import { filterProfessionals } from '../../lib/rules';
-import { slugify } from '../../lib/format';
+import { filterProfessionals, SORTS } from '../../lib/rules';
+import { plural, slugify } from '../../lib/format';
 import { ProfessionalCard } from '../../components/professionals/ProfessionalCard';
 import { Button } from '../../components/ui/Button';
-import { Select } from '../../components/ui/Field';
+import { Input, Select } from '../../components/ui/Field';
 import { EmptyState } from '../../components/ui/Feedback';
 import type { SearchFilters } from '../../types/domain';
 import { useRequirementLink } from '../../hooks/useRequirementLink';
@@ -22,9 +22,19 @@ export function SearchPage() {
     type: params.get('type') || '',
     service: params.get('service') || '',
     experience: params.get('experience') || '',
+    q: params.get('q') || '',
+    projectType: params.get('projectType') || '',
+    sort: params.get('sort') || 'active',
   };
+  const [query, setQuery] = useState(filters.q);
+  useEffect(() => setQuery(filters.q), [filters.q]);
   const [refine, setRefine] = useState(!!(filters.type || filters.service || filters.experience));
   const results = filterProfessionals(state.providers, filters);
+  const published = state.providers.filter((p) => p.status === 'published');
+  // Only cities where someone actually works, so the list never offers an empty choice.
+  const cities = CITIES.filter((c) =>
+    published.some((p) => [p.city, ...(p.workCities || [])].some((w) => slugify(w) === slugify(c))),
+  );
   const city = CITIES.find((c) => slugify(c) === slugify(filters.city));
   const setFilter = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -32,11 +42,19 @@ export function SearchPage() {
     next.delete('page');
     setParams(next);
   };
-  const count = (key: keyof SearchFilters, value: string) =>
-    filterProfessionals(state.providers, { ...filters, [key]: value }).length;
+  const has = (key: keyof SearchFilters, value: string) =>
+    filterProfessionals(state.providers, { ...filters, [key]: value }).length > 0;
   const requestedPage = Number(params.get('page'));
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const pages = Math.ceil(results.length / 20);
+  const filtered = !!(
+    filters.city ||
+    filters.type ||
+    filters.service ||
+    filters.experience ||
+    filters.q ||
+    filters.projectType
+  );
   return (
     <>
       <section className="discovery-intro">
@@ -54,7 +72,29 @@ export function SearchPage() {
         </div>
       </section>
       <section className="container search-content">
-        <div className="filter-bar">
+        <form
+          className="filter-bar"
+          role="search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setFilter('q', query.trim());
+          }}
+        >
+          <div className="name-search">
+            <Search size={18} />
+            <Input
+              label="Name or studio"
+              name="q"
+              type="search"
+              placeholder="e.g. Aangan Studio"
+              value={query}
+              maxLength={60}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (!e.target.value) setFilter('q', '');
+              }}
+            />
+          </div>
           <div className="city-filter">
             <MapPin size={19} />
             <Select
@@ -70,28 +110,54 @@ export function SearchPage() {
                 );
               }}
             >
-              <option value="">All cities ({count('city', '')})</option>
-              {CITIES.map((c) => (
-                <option key={c} value={slugify(c)} disabled={count('city', c) === 0}>
-                  {c} ({count('city', c)})
+              <option value="">All cities</option>
+              {city && !cities.includes(city) && <option value={slugify(city)}>{city}</option>}
+              {cities.map((c) => (
+                <option key={c} value={slugify(c)}>
+                  {c}
                 </option>
               ))}
             </Select>
           </div>
-          <Button variant="secondary" aria-expanded={refine} onClick={() => setRefine(!refine)}>
+          <Select
+            label="Project type"
+            value={filters.projectType}
+            onChange={(e) => setFilter('projectType', e.target.value)}
+          >
+            <option value="">Residential & commercial</option>
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial</option>
+          </Select>
+          <Select
+            label="Sort by"
+            value={filters.sort}
+            onChange={(e) => setFilter('sort', e.target.value === 'active' ? '' : e.target.value)}
+          >
+            {SORTS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+          <Button
+            type="button"
+            variant="secondary"
+            aria-expanded={refine}
+            onClick={() => setRefine(!refine)}
+          >
             <SlidersHorizontal size={17} />
-            Refine{' '}
+            More filters{' '}
             {filters.type || filters.service || filters.experience ? (
               <span className="filter-dot" />
             ) : null}
           </Button>
-          {Object.values(filters).some(Boolean) && (
+          {filtered && (
             <Link className="text-link clear-filters" to={withRequirement('/architects')}>
               <X size={15} />
               Clear filters
             </Link>
           )}
-        </div>
+        </form>
         {refine && (
           <div className="refine-grid">
             {[
@@ -120,24 +186,28 @@ export function SearchPage() {
                 value={filters[group.key]}
                 onChange={(e) => setFilter(group.key, e.target.value)}
               >
-                <option value="">Any ({count(group.key, '')})</option>
-                {group.values.map(([value, label]) => (
-                  <option key={value} value={value} disabled={count(group.key, value) === 0}>
-                    {label} ({count(group.key, value)})
-                  </option>
-                ))}
+                <option value="">Any</option>
+                {group.values
+                  .filter(([value]) => value === filters[group.key] || has(group.key, value))
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
               </Select>
             ))}
           </div>
         )}
         <div className="results-heading">
           <p>
-            <strong>
-              {results.length} {results.length === 1 ? 'professional' : 'professionals'}
-            </strong>
+            <strong>{plural(results.length, 'professional')}</strong>
             {city ? ` in ${city}` : ' to discover'}
+            {filters.q ? ` matching “${filters.q}”` : ''}
           </p>
-          <span>Different perspectives. Your perfect fit.</span>
+          <span>
+            Sorted by{' '}
+            {SORTS.find(([v]) => v === filters.sort)?.[1].toLowerCase() || 'recently active'}
+          </span>
         </div>
         {results.length ? (
           <div className="results-list">
@@ -155,9 +225,9 @@ export function SearchPage() {
         ) : (
           <EmptyState
             title="A little change could open up more possibilities."
-            description={`No professionals match ${[city || filters.city, filters.type.replaceAll('-', ' '), filters.service.replaceAll('-', ' '), filters.experience && filters.experience + ' years'].filter(Boolean).join(' · ')}. Remove a filter or explore the sample practices in Ahmedabad.`}
-            to="/architects/ahmedabad"
-            action="See professionals in Ahmedabad"
+            description={`No professionals match ${[filters.q && `“${filters.q}”`, city || filters.city, filters.projectType, filters.type.replaceAll('-', ' '), filters.service.replaceAll('-', ' '), filters.experience && filters.experience + ' years'].filter(Boolean).join(' · ')}. Remove a filter to see more practices.`}
+            to={withRequirement('/architects')}
+            action="See all professionals"
           />
         )}
         {pages > 1 && (
@@ -176,7 +246,7 @@ export function SearchPage() {
         <div className="search-bottom">
           <span>Are you an architect or interior designer?</span>
           <Link to="/join">
-            Make room for your practice <ArrowRight size={16} />
+            Join as a professional <ArrowRight size={16} />
           </Link>
         </div>
       </section>

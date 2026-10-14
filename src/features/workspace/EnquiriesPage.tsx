@@ -3,14 +3,21 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowUpRight, ArrowUp, ArrowDown, Trash2, Plus, Send } from 'lucide-react';
 import { useDemo } from '../../hooks/useDemo';
 import { useLocalDraft } from '../../hooks/useLocalDraft';
-import { OWN_PROVIDER_ID, FEE_BANDS, CONTACT_WARNING } from '../../config/catalog';
+import { OWN_PROVIDER_ID, CONTACT_WARNING, TIMELINE_UNITS } from '../../config/catalog';
 import { DELIVERABLES } from '../../config/deliverables';
-import { hasContactDetails } from '../../lib/rules';
-import { uid, dateLabel, money } from '../../lib/format';
+import { bandForFee, hasContactDetails } from '../../lib/rules';
+import { uid, dateLabel, money, plural, joinMeasure } from '../../lib/format';
+import { newestFirst } from './DashboardPage';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Field';
-import { Notice, EmptyState, MaskedContact, StatusBadge } from '../../components/ui/Feedback';
+import {
+  Notice,
+  EmptyState,
+  MaskedContact,
+  StatusBadge,
+  toast,
+} from '../../components/ui/Feedback';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { RequirementSummary } from '../../components/enquiries/RequirementSummary';
 import { ContactReveal } from '../../components/enquiries/ContactReveal';
@@ -19,12 +26,18 @@ import { PackList } from '../connects/ConnectsPages';
 export function EnquiriesPage() {
   const { state } = useDemo();
   const [filter, setFilter] = useState('all');
-  const enquiries = state.enquiries.filter(
-    (e) =>
-      e.providerId === OWN_PROVIDER_ID &&
-      (filter === 'all' ||
-        (filter === 'new' ? ['sent', 'viewed'].includes(e.status) : e.status === filter)),
-  );
+  const enquiries = state.enquiries
+    .filter(
+      (e) =>
+        e.providerId === OWN_PROVIDER_ID &&
+        (filter === 'all' ||
+          (filter === 'new'
+            ? ['sent', 'viewed'].includes(e.status)
+            : filter === 'declined'
+              ? ['declined_by_client', 'declined_by_provider', 'withdrawn'].includes(e.status)
+              : e.status === filter)),
+    )
+    .sort(newestFirst);
   return (
     <>
       <PageHeading
@@ -32,12 +45,13 @@ export function EnquiriesPage() {
         title="Your next chapter starts here."
         description="Read the idea. Consider the fit. Choose the projects you’d love to shape."
       />
-      <div className="segmented" style={{ maxWidth: 530, marginBottom: 27 }}>
+      <div className="segmented" style={{ maxWidth: 640, marginBottom: 27 }}>
         {[
           ['all', 'All enquiries'],
           ['new', 'Awaiting reply'],
           ['proposal_sent', 'Proposal sent'],
           ['accepted', 'Accepted'],
+          ['declined', 'Declined'],
         ].map(([value, label]) => (
           <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>
             {label}
@@ -46,26 +60,23 @@ export function EnquiriesPage() {
       </div>
       {enquiries.length ? (
         <div className="panel">
-          {enquiries
-            .slice()
-            .reverse()
-            .map((e) => {
-              const r = state.requirements.find((r) => r.id === e.requirementId)!;
-              return (
-                <Link className="enquiry-list-row" to={`/dashboard/enquiries/${e.id}`} key={e.id}>
-                  <div>
-                    <h3>{r.title}</h3>
-                    <p>
-                      {r.service} · {r.city} · {dateLabel(e.sentAt)}
-                    </p>
-                  </div>
-                  <div className="row-end">
-                    <StatusBadge status={e.status} />
-                    <ArrowUpRight size={20} />
-                  </div>
-                </Link>
-              );
-            })}
+          {enquiries.map((e) => {
+            const r = state.requirements.find((r) => r.id === e.requirementId)!;
+            return (
+              <Link className="enquiry-list-row" to={`/dashboard/enquiries/${e.id}`} key={e.id}>
+                <div>
+                  <h3>{r.title}</h3>
+                  <p>
+                    {r.service} · {r.city} · {dateLabel(e.sentAt)}
+                  </p>
+                </div>
+                <div className="row-end">
+                  <StatusBadge status={e.status} side="professional" />
+                  <ArrowUpRight size={20} />
+                </div>
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <EmptyState
@@ -114,7 +125,7 @@ export function EnquiryDetail() {
           </ButtonLink>
         }
       />
-      <StatusBadge status={enquiry.status} />
+      <StatusBadge status={enquiry.status} side="professional" />
       <div className="enquiry-detail-grid">
         <div className="stack">
           <div className="panel">
@@ -140,7 +151,14 @@ export function EnquiryDetail() {
                 </div>
               </dl>
               <Notice>
-                {proposal.cost} connects spent. Sent proposals cannot be edited or withdrawn.
+                {proposal.cost} connects spent.{' '}
+                {enquiry.status === 'proposal_sent'
+                  ? 'The client is reviewing your proposal.'
+                  : enquiry.status === 'declined_by_client'
+                    ? 'The client chose another direction; half your connects were returned.'
+                    : enquiry.status === 'withdrawn'
+                      ? 'The client closed this enquiry; your connects were returned.'
+                      : ''}
               </Notice>
             </div>
           )}
@@ -159,15 +177,28 @@ export function EnquiryDetail() {
           <div className="panel">
             <span className="eyebrow">BEFORE YOU DECIDE</span>
             <h3>
-              {state.enquiries.filter((e) => e.requirementId === requirement.id).length}{' '}
-              professionals contacted
+              {plural(
+                state.enquiries.filter((e) => e.requirementId === requirement.id).length,
+                'professional',
+              )}{' '}
+              contacted
             </h3>
             <p className="small" style={{ marginTop: 14 }}>
               This is the current number of professionals who received this requirement. Proposals
               are private.
             </p>
           </div>
-          {enquiry.status === 'accepted' ? <ContactReveal /> : <MaskedContact />}
+          {enquiry.status === 'accepted' ? (
+            <ContactReveal
+              role="client"
+              name={requirement.client?.name || 'Your client'}
+              phone={requirement.client?.phone}
+              email={requirement.client?.email}
+              project={requirement.title}
+            />
+          ) : (
+            <MaskedContact />
+          )}
         </aside>
       </div>
       <ConfirmDialog
@@ -175,14 +206,15 @@ export function EnquiryDetail() {
         title="Not the right fit this time?"
         confirmLabel="Decline enquiry"
         onClose={() => setDecline(false)}
-        onConfirm={() =>
+        onConfirm={() => {
           dispatch({
             type: 'decide',
             enquiryId: enquiry.id,
             decision: 'declined_by_provider',
             date: new Date().toISOString(),
-          })
-        }
+          });
+          toast('Enquiry declined');
+        }}
       >
         <p>
           No connects are charged. The client will see that you are unavailable for this project.
@@ -220,19 +252,22 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
   const navigate = useNavigate();
   const enquiry = state.enquiries.find((e) => e.id === enquiryId)!;
   const requirement = state.requirements.find((r) => r.id === enquiry.requirementId)!;
-  const key = `urdesigner.draft.proposal.${enquiryId}`;
+  const key = `urdesigner.draft.proposal.v2.${enquiryId}`;
   const [draft, setDraft, failed] = useLocalDraft(key, {
     scope: '',
     deliverables: [...(DELIVERABLES[requirement.service] || [])],
-    band: 'B',
-    timeline: '',
+    timelineAmount: '',
+    timelineUnit: 'weeks' as string,
     fee: '',
   });
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState('');
-  const band = FEE_BANDS.find((b) => b.id === draft.band) || FEE_BANDS[1];
+  const fee = Math.round(Number(draft.fee) || 0);
+  // The connect cost follows the design fee you quote; there is no band to pick by hand.
+  const band = bandForFee(fee);
   const shortfall = Math.max(0, band.cost - state.balance);
-  const flagged = hasContactDetails([draft.scope, draft.fee, ...draft.deliverables].join(' '));
+  const timeline = joinMeasure(draft.timelineAmount, draft.timelineUnit);
+  const flagged = hasContactDetails([draft.scope, ...draft.deliverables].join(' '));
   const move = (index: number, next: number) => {
     const list = [...draft.deliverables];
     const [line] = list.splice(index, 1);
@@ -357,19 +392,45 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
             </p>
           </div>
           <div className="form-grid">
+            <div className="measure-field">
+              <Input
+                label="Expected timeline"
+                type="number"
+                min={1}
+                max={365}
+                step={1}
+                inputMode="numeric"
+                placeholder="e.g. 8"
+                value={draft.timelineAmount}
+                required
+                onChange={(e) => setDraft({ ...draft, timelineAmount: e.target.value })}
+              />
+              <Select
+                label="Timeline unit"
+                value={draft.timelineUnit}
+                onChange={(e) => setDraft({ ...draft, timelineUnit: e.target.value })}
+              >
+                {TIMELINE_UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </Select>
+            </div>
             <Input
-              label="Expected timeline"
-              placeholder="e.g. 8–10 weeks"
-              value={draft.timeline}
-              required
-              maxLength={100}
-              onChange={(e) => setDraft({ ...draft, timeline: e.target.value })}
-            />
-            <Input
-              label="Indicative design fee (optional)"
-              placeholder="e.g. ₹65,000"
+              label="Indicative design fee (₹)"
+              type="number"
+              min={1000}
+              step={500}
+              inputMode="numeric"
+              placeholder="e.g. 65000"
               value={draft.fee}
-              maxLength={120}
+              required
+              hint={
+                fee
+                  ? `Shown to the client as ${money(fee)}.`
+                  : 'Your own design fee, not the client’s project budget.'
+              }
               onChange={(e) => setDraft({ ...draft, fee: e.target.value })}
             />
           </div>
@@ -377,18 +438,11 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
         </section>
         <section className="panel stack">
           <h2>Your proposal cost, upfront.</h2>
-          <Select
-            label="Your design fee band"
-            hint="Select the band for your own design fee, not the client’s total project budget. This band is not shown to clients."
-            value={draft.band}
-            onChange={(e) => setDraft({ ...draft, band: e.target.value })}
-          >
-            {FEE_BANDS.map((b) => (
-              <option key={b.id} value={b.id}>
-                Band {b.id} · {b.label} · {b.cost} connects
-              </option>
-            ))}
-          </Select>
+          <p className="small">
+            {fee
+              ? `A ${money(fee)} design fee is band ${band.id} (${band.label}). Bands are set from your fee and never shown to clients.`
+              : 'Enter your design fee above — the connect cost is set from it automatically.'}
+          </p>
           <div className="proposal-summary">
             <div>
               <span>Cost to send</span>
@@ -439,7 +493,7 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
           <p className="small">
             Review carefully. Once sent, this proposal cannot be edited, withdrawn or re-sent.
           </p>
-          <Button type="submit" disabled={shortfall > 0}>
+          <Button type="submit" disabled={shortfall > 0 && fee > 0}>
             <Send size={16} />
             Send · {band.cost} connects
           </Button>
@@ -457,9 +511,20 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
           }
           dispatch({
             type: 'proposal',
-            proposal: { ...draft, id: uid(), enquiryId, cost: band.cost, flagged },
+            proposal: {
+              id: uid(),
+              enquiryId,
+              scope: draft.scope.trim(),
+              deliverables: draft.deliverables.map((d) => d.trim()),
+              band: band.id,
+              timeline,
+              fee: money(fee),
+              cost: band.cost,
+              flagged,
+            },
             date: new Date().toISOString(),
           });
+          toast('Proposal sent');
           try {
             localStorage.removeItem(key);
           } catch {

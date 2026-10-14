@@ -1,21 +1,107 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, MapPin, Search, LockKeyhole, Check } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  MapPin,
+  Search,
+  LockKeyhole,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { CITIES } from '../../config/catalog';
 import { useDemo } from '../../hooks/useDemo';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { slugify } from '../../lib/format';
 import { ProfessionalCard } from '../../components/professionals/ProfessionalCard';
 import { ProjectCard } from '../../components/projects/ProjectCard';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { HeroVisual } from './components/HeroVisual';
+
+/** Sections fade up once as they scroll in. Content stays visible without JavaScript. */
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root || !('IntersectionObserver' in window)) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const sections = [...root.querySelectorAll<HTMLElement>('.reveal')].filter(
+      (el) => el.getBoundingClientRect().top > window.innerHeight,
+    );
+    sections.forEach((el) => el.classList.add('reveal--waiting'));
+    const observer = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.remove('reveal--waiting');
+            observer.unobserve(entry.target);
+          }
+        }),
+      { rootMargin: '0px 0px -8% 0px' },
+    );
+    sections.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
+
+/** Featured studios glide sideways on their own; hovering or focusing pauses them. */
+function StudioCarousel({ children }: { children: ReactNode }) {
+  const track = useRef<HTMLDivElement>(null);
+  const [paused, setPaused] = useState(false);
+  const reduced = usePrefersReducedMotion();
+  const step = (direction: 1 | -1) => {
+    const el = track.current;
+    if (!el) return;
+    const card = el.firstElementChild as HTMLElement | null;
+    const width = (card?.offsetWidth || el.clientWidth / 3) + 25;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+    if (direction === 1 && atEnd) el.scrollTo({ left: 0, behavior: 'smooth' });
+    else if (direction === -1 && el.scrollLeft <= 4)
+      el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' });
+    else el.scrollBy({ left: direction * width, behavior: 'smooth' });
+  };
+  useEffect(() => {
+    if (paused || reduced) return;
+    const timer = setInterval(() => step(1), 3500);
+    return () => clearInterval(timer);
+  }, [paused, reduced]);
+  return (
+    <div
+      className="studio-carousel"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <div className="studio-track" ref={track}>
+        {children}
+      </div>
+      <div className="carousel-controls">
+        <button type="button" aria-label="Previous studios" onClick={() => step(-1)}>
+          <ChevronLeft size={18} />
+        </button>
+        <button type="button" aria-label="Next studios" onClick={() => step(1)}>
+          <ChevronRight size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const principles = ['Discover the work', 'Find your people', 'Start a conversation'];
+
 export function HomePage() {
-  const [city, setCity] = useState('Ahmedabad');
+  const [city, setCity] = useState('');
+  const [cityError, setCityError] = useState('');
   const navigate = useNavigate();
   const { state } = useDemo();
+  const listId = useId();
+  const reveal = useReveal();
   const providers = state.providers.filter((p) => p.status === 'published');
-  const featured = providers.slice(0, 3);
   return (
-    <>
+    <div ref={reveal}>
       <section className="hero container">
         <div className="hero-copy">
           <span className="eyebrow">
@@ -37,23 +123,37 @@ export function HomePage() {
             action="/architects"
             onSubmit={(e) => {
               e.preventDefault();
-              navigate(`/architects/${slugify(city)}`);
+              const match = CITIES.find((c) => c.toLowerCase() === city.trim().toLowerCase());
+              if (city.trim() && !match) {
+                setCityError('Choose a city from the list, or leave it empty to see everyone');
+                return;
+              }
+              navigate(match ? `/architects/${slugify(match)}` : '/architects');
             }}
           >
             <div>
               <MapPin size={20} />
               <label htmlFor="hero-city">
                 <span>Where’s your project?</span>
-                <select
+                <input
                   id="hero-city"
                   name="city"
+                  list={listId}
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                >
+                  placeholder="Any city in India"
+                  autoComplete="address-level2"
+                  aria-invalid={!!cityError}
+                  aria-describedby={cityError ? 'hero-city-error' : undefined}
+                  onChange={(e) => {
+                    setCity(e.target.value);
+                    setCityError('');
+                  }}
+                />
+                <datalist id={listId}>
                   {CITIES.map((c) => (
-                    <option key={c}>{c}</option>
+                    <option key={c} value={c} />
                   ))}
-                </select>
+                </datalist>
               </label>
             </div>
             <Button type="submit">
@@ -61,6 +161,11 @@ export function HomePage() {
               <span>Find a professional</span>
             </Button>
           </form>
+          {cityError && (
+            <small id="hero-city-error" className="error-text" role="alert">
+              {cityError}
+            </small>
+          )}
           <div className="hero-reassurance">
             <span>
               <Check size={14} /> Free to explore
@@ -79,19 +184,23 @@ export function HomePage() {
             <br />
             <strong>Better spaces.</strong>
           </span>
-          <div>
-            <span>01</span> Discover the work
+          <div className="principles-marquee">
+            {[0, 1].map((copy) => (
+              <div className="principles-track" key={copy} aria-hidden={copy === 1}>
+                {principles.map((text, i) => (
+                  <div key={text}>
+                    <span>0{i + 1}</span> {text}
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
-          <div>
-            <span>02</span> Find your people
-          </div>
-          <div>
-            <span>03</span> Start a conversation
-          </div>
-          <span className="strip-star">✳</span>
+          <span className="strip-star" aria-hidden="true">
+            ✳
+          </span>
         </div>
       </div>
-      <section className="section container">
+      <section className="section container reveal">
         <div className="section-heading">
           <div>
             <span className="eyebrow">THE PEOPLE BEHIND THE SPACES</span>
@@ -99,19 +208,16 @@ export function HomePage() {
             <p>Independent minds. Distinct perspectives. A shared love for good design.</p>
           </div>
           <Link className="text-link" to="/architects">
-            Explore professionals <ArrowUpRight size={18} />
+            Find a professional <ArrowUpRight size={18} />
           </Link>
         </div>
-        <div className="studio-grid">
-          {featured.map((p) => (
+        <StudioCarousel>
+          {providers.map((p) => (
             <ProfessionalCard key={p.id} professional={p} compact />
           ))}
-        </div>
-        <p className="sample-caption">
-          A preview of discovery · Sample professional profiles and portfolio imagery
-        </p>
+        </StudioCarousel>
       </section>
-      <section className="how-section" id="how-it-works">
+      <section className="how-section reveal" id="how-it-works">
         <div className="container">
           <div className="how-intro">
             <span className="eyebrow">FROM AN IDEA TO A FIRST HELLO</span>
@@ -122,7 +228,7 @@ export function HomePage() {
             </h2>
             <p>Finding the right professional shouldn’t feel like a project in itself.</p>
             <ButtonLink to="/architects" variant="secondary">
-              Let’s get started <ArrowRight size={17} />
+              Find a professional <ArrowRight size={17} />
             </ButtonLink>
           </div>
           <div className="steps">
@@ -154,33 +260,27 @@ export function HomePage() {
           </div>
         </div>
       </section>
-      <section className="section container">
+      <section className="section container reveal">
         <div className="section-heading">
           <div>
             <span className="eyebrow">POSSIBILITIES, IN PICTURES</span>
             <h2>A little inspiration. A fresh perspective.</h2>
-            <p>Explore the spaces in our sample portfolios.</p>
+            <p>Spaces from the practices on UrDesigner.</p>
           </div>
           <Link to="/architects" className="text-link">
-            Meet their designers <ArrowUpRight size={18} />
+            Find a professional <ArrowUpRight size={18} />
           </Link>
         </div>
-        <div className="project-grid">
+        <div className="masonry masonry--home">
           {providers
-            .slice(0, 3)
-            .map(
-              (p, i) =>
-                p.projects.length > 0 && (
-                  <ProjectCard
-                    key={p.id}
-                    project={p.projects[i === 0 ? 1 : 0] || p.projects[0]}
-                    slug={p.slug}
-                  />
-                ),
-            )}
+            .flatMap((p) => p.projects.slice(0, 2).map((project) => ({ p, project })))
+            .slice(0, 6)
+            .map(({ p, project }) => (
+              <ProjectCard key={project.id} project={project} slug={p.slug} natural />
+            ))}
         </div>
       </section>
-      <section className="container">
+      <section className="container reveal">
         <div className="professional-cta">
           <div>
             <span className="eyebrow">FOR ARCHITECTS & INTERIOR DESIGNERS</span>
@@ -215,6 +315,6 @@ export function HomePage() {
           A conversation on your terms. Contact details are only shared when a proposal is accepted.
         </p>
       </div>
-    </>
+    </div>
   );
 }

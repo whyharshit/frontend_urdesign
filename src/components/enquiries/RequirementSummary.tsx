@@ -1,4 +1,4 @@
-import { dateLabel } from '../../lib/format';
+import { areaLabel, dateLabel } from '../../lib/format';
 import type { Requirement } from '../../types/domain';
 
 export function RequirementSummary({ requirement: r }: { requirement: Requirement }) {
@@ -14,9 +14,9 @@ export function RequirementSummary({ requirement: r }: { requirement: Requiremen
           ['Service', r.service],
           ['City', r.city],
           ['Project type', r.projectType],
-          ['Project budget', r.budget || 'Open to discussion'],
+          ['Total project budget', r.budget || 'Open to discussion'],
           ['Preferred timeline', r.timeline || 'Flexible'],
-          ['Project size', r.size || 'Not specified'],
+          ['Project size', r.size ? areaLabel(r.size) : 'Not specified'],
           ['Created', dateLabel(r.createdAt)],
         ].map(([label, value]) => (
           <div key={label}>

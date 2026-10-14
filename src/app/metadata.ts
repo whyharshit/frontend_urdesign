@@ -31,20 +31,51 @@ export function getPageMetadata(url: string) {
     }
   } else if (pathname !== '/') {
     const titles: Record<string, string> = {
-      '/join': 'Make room for your practice',
-      '/login': 'Welcome back',
+      '/join': 'Join as a professional',
+      '/login': 'Professional log in',
       '/forgot-password': 'Reset your password',
       '/my-enquiries': 'My enquiries',
+      '/my-enquiries/saved': 'Saved professionals',
       '/terms': 'Terms of service',
       '/privacy': 'Privacy policy',
       '/playground': 'Explore the frontend',
       '/dashboard': 'Your studio overview',
+      '/dashboard/setup': 'Set up your profile',
+      '/dashboard/profile': 'My profile',
+      '/dashboard/publish': 'Preview & publish',
+      '/dashboard/services': 'Services & pricing',
+      '/dashboard/portfolio': 'Portfolio',
+      '/dashboard/portfolio/new': 'Add a project',
+      '/dashboard/enquiries': 'Enquiries',
+      '/dashboard/connects': 'Connects wallet',
+      '/dashboard/connects/buy': 'Buy connects',
+      '/dashboard/referrals': 'Refer a professional',
       '/admin': 'Professional moderation',
+      '/admin/login': 'Admin log in',
+      '/admin/reports': 'Reported profiles',
+      '/admin/payments': 'Payment verification',
+      '/admin/enquiries': 'Enquiries & proposals',
     };
-    title = titles[pathname] || pathname.split('/').filter(Boolean).at(-1)!.replaceAll('-', ' ');
-    if (!titles[pathname] && !/^\/(dashboard|admin|enquiry|my-enquiries)\//.test(pathname)) {
+    // Dynamic workspace routes get a readable name, never a raw id.
+    const patterns: [RegExp, string][] = [
+      [/^\/dashboard\/portfolio\/[^/]+$/, 'Edit project'],
+      [/^\/dashboard\/enquiries\/[^/]+\/proposal$/, 'Write a proposal'],
+      [/^\/dashboard\/enquiries\/[^/]+$/, 'Enquiry details'],
+      [/^\/dashboard\/connects\/payment\/[^/]+$/, 'Connect pack payment'],
+      [/^\/my-enquiries\/proposal\/[^/]+$/, 'Your proposal'],
+      [/^\/my-enquiries\/compare\/[^/]+$/, 'Compare proposals'],
+      [/^\/enquiry\/[^/]+$/, 'Send an enquiry'],
+    ];
+    const clean = pathname.replace(/\/+$/, '') || '/';
+    const match = titles[clean] || patterns.find(([pattern]) => pattern.test(clean))?.[1];
+    if (match) title = match;
+    else {
       title = 'Page not found';
       status = 404;
+    }
+    if (clean.startsWith('/enquiry/')) {
+      const provider = seedProviders.find((p) => p.slug === clean.split('/')[2]);
+      if (provider) title = `Send an enquiry to ${provider.studio || provider.name}`;
     }
   }
   return {

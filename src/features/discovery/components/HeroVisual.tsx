@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MoveUpRight } from 'lucide-react';
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion';
 
 const spaces = [
   {
@@ -13,16 +14,35 @@ const spaces = [
   { image: 'house', alt: 'A contemporary home opening onto green outdoor space' },
 ];
 
+/** Hero slideshow: advances by itself every few seconds, pauses on hover or focus. */
 export function HeroVisual() {
   const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const reduced = usePrefersReducedMotion();
+  useEffect(() => {
+    if (paused || reduced) return;
+    const timer = setTimeout(() => setActive((i) => (i + 1) % spaces.length), 5000);
+    return () => clearTimeout(timer);
+  }, [active, paused, reduced]);
   return (
-    <div className="hero-visual">
-      <div className="hero-photo">
-        <img
-          src={`/images/${spaces[active].image}.jpg`}
-          alt={spaces[active].alt}
-          fetchPriority="high"
-        />
+    <div
+      className="hero-visual"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <div className="hero-photo" aria-roledescription="carousel">
+        {spaces.map((space, i) => (
+          <img
+            key={space.image}
+            className={i === active ? 'is-active' : ''}
+            src={`/images/${space.image}.jpg`}
+            alt={i === active ? space.alt : ''}
+            aria-hidden={i !== active}
+            fetchPriority={i === 0 ? 'high' : 'low'}
+          />
+        ))}
         <div className="hero-photo-caption">
           <span>A little inspiration for your next chapter</span>
           <div className="hero-slide-nav" aria-label="Featured spaces">

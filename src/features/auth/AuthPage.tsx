@@ -1,23 +1,29 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { Input } from '../../components/ui/Field';
+import { Checkbox, Input } from '../../components/ui/Field';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { DemoNotice } from '../../components/ui/DemoNotice';
 import { Notice } from '../../components/ui/Feedback';
+import { useDemo } from '../../hooks/useDemo';
 import { OtpForm } from './OtpForm';
 
+/** Professionals only. Clients sign in through the OTP sent when they enquire. */
 export function AuthPage({ mode }: { mode: 'join' | 'login' | 'reset' }) {
   const navigate = useNavigate();
+  const { dispatch } = useDemo();
   const [params] = useSearchParams();
-  const [role, setRole] = useState<'professional' | 'client'>('professional');
   const [step, setStep] = useState<'details' | 'otp' | 'password' | 'complete'>('details');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const join = mode === 'join';
   const reset = mode === 'reset';
   return (
     <div className="auth-shell">
       <aside className="auth-story">
-        <span className="eyebrow">A PLACE FOR YOUR NEXT CHAPTER</span>
+        <span className="eyebrow">FOR ARCHITECTS & INTERIOR DESIGNERS</span>
         <h1>
           You shape spaces.
           <br />
@@ -36,6 +42,7 @@ export function AuthPage({ mode }: { mode: 'join' | 'login' | 'reset' }) {
         </p>
       </aside>
       <div className="auth-form" key={mode}>
+        <span className="eyebrow">PROFESSIONAL ACCOUNT</span>
         <h2>
           {step === 'otp'
             ? 'A small step. A real connection.'
@@ -55,15 +62,19 @@ export function AuthPage({ mode }: { mode: 'join' | 'login' | 'reset' }) {
         <DemoNotice />
         {step === 'otp' ? (
           <OtpForm
+            phone={phone}
             onBack={() => setStep('details')}
-            onVerified={() =>
-              reset
-                ? setStep('password')
-                : navigate(role === 'client' ? '/my-enquiries' : '/dashboard')
-            }
+            onVerified={() => {
+              if (reset) setStep('password');
+              else {
+                dispatch({ type: 'signup', phone, email, date: new Date().toISOString() });
+                navigate('/dashboard/setup');
+              }
+            }}
           />
         ) : step === 'password' ? (
           <form
+            className="stack"
             onSubmit={(e) => {
               e.preventDefault();
               setStep('complete');
@@ -75,113 +86,89 @@ export function AuthPage({ mode }: { mode: 'join' | 'login' | 'reset' }) {
               minLength={8}
               required
               autoComplete="new-password"
-              hint="At least 8 characters. This demo does not store passwords."
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              hint="At least 8 characters."
             />
-            <Button type="submit">Preview password reset</Button>
+            <Button type="submit">Save new password</Button>
           </form>
         ) : step === 'complete' ? (
           <div className="stack">
-            <Notice tone="success">
-              Password reset preview complete. Real password changes will be available when the
-              authentication API is connected.
-            </Notice>
-            <ButtonLink to="/login">Return to login</ButtonLink>
+            <Notice tone="success">Your password is updated. Log in with your new password.</Notice>
+            <ButtonLink to="/login">Return to log in</ButtonLink>
           </div>
         ) : (
           <>
-            {!reset && (
-              <div className="segmented" style={{ marginBottom: 25 }} aria-label="Account type">
-                <button
-                  aria-pressed={role === 'professional'}
-                  onClick={() => setRole('professional')}
-                >
-                  I’m a professional
-                </button>
-                <button aria-pressed={role === 'client'} onClick={() => setRole('client')}>
-                  I’m looking for a designer
-                </button>
-              </div>
-            )}
-            {join && role === 'client' ? (
-              <div className="stack">
-                <p>
-                  Start by finding a professional whose work speaks to you. Your account is created
-                  when you send your first enquiry.
-                </p>
-                <ButtonLink to="/architects">
-                  Find a professional <ArrowUpRight size={17} />
-                </ButtonLink>
-              </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (mode === 'login' && role === 'professional') navigate('/dashboard');
-                  else setStep('otp');
-                }}
-              >
+            <form
+              className="stack"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (mode === 'login') {
+                  dispatch({ type: 'login', role: 'professional' });
+                  navigate('/dashboard');
+                } else setStep('otp');
+              }}
+            >
+              <Input
+                label="Mobile number"
+                type="tel"
+                autoComplete="tel-national"
+                inputMode="numeric"
+                pattern="[6-9][0-9]{9}"
+                maxLength={10}
+                placeholder="10-digit Indian mobile number"
+                hint="India (+91)"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+              />
+              {join && (
                 <Input
-                  label="Mobile number"
-                  type="tel"
-                  autoComplete="tel-national"
-                  inputMode="numeric"
-                  pattern="[6-9][0-9]{9}"
-                  maxLength={10}
-                  placeholder="10-digit Indian mobile number"
-                  hint="India (+91)"
+                  label="Email address"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@yourstudio.com"
                   required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
-                {join && (
+              )}
+              {!reset && (
+                <Input
+                  label="Password"
+                  type="password"
+                  autoComplete={join ? 'new-password' : 'current-password'}
+                  minLength={8}
+                  placeholder="At least 8 characters"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              )}
+              {join && (
+                <>
                   <Input
-                    label="Email address"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="you@yourstudio.com"
-                    required
+                    label="Referral code (optional)"
+                    defaultValue={params.get('ref') || ''}
+                    maxLength={30}
+                    hint="Both professionals earn 20 connects after the referred profile is published."
                   />
-                )}
-                {!reset && role === 'professional' && (
-                  <Input
-                    label="Password"
-                    type="password"
-                    autoComplete={join ? 'new-password' : 'current-password'}
-                    minLength={8}
-                    placeholder="At least 8 characters"
-                    required
-                  />
-                )}
-                {join && (
-                  <>
-                    <Input
-                      label="Referral code (optional)"
-                      defaultValue={params.get('ref') || ''}
-                      maxLength={30}
-                      hint="Both professionals earn 20 connects after the referred profile is published. Referral validation requires the backend."
-                    />
-                    <label className="checkbox">
-                      <input type="checkbox" required />
-                      <span>
-                        I agree to the <Link to="/terms">Terms</Link> and{' '}
-                        <Link to="/privacy">Privacy Policy</Link>. My role is fixed after signup.
-                      </span>
-                    </label>
-                  </>
-                )}
-                {mode === 'login' && role === 'professional' && (
-                  <Link className="text-link" to="/forgot-password">
-                    Forgot password?
-                  </Link>
-                )}
-                <Button type="submit">
-                  {join
-                    ? 'Continue to verification'
-                    : reset || role === 'client'
-                      ? 'Continue with OTP'
-                      : 'Open demo workspace'}
-                  <ArrowUpRight size={16} />
-                </Button>
-              </form>
-            )}
+                  <Checkbox required>
+                    I agree to the <Link to="/terms">Terms</Link> and{' '}
+                    <Link to="/privacy">Privacy Policy</Link>.
+                  </Checkbox>
+                </>
+              )}
+              {mode === 'login' && (
+                <Link className="text-link" to="/forgot-password">
+                  Forgot password?
+                </Link>
+              )}
+              <Button type="submit">
+                {join ? 'Continue to verification' : reset ? 'Continue with OTP' : 'Log in'}
+                <ArrowUpRight size={16} />
+              </Button>
+            </form>
             <div className="auth-foot">
               {join ? (
                 <>
@@ -192,6 +179,9 @@ export function AuthPage({ mode }: { mode: 'join' | 'login' | 'reset' }) {
                   New here? <Link to="/join">Create your professional profile</Link>
                 </>
               )}
+            </div>
+            <div className="auth-foot auth-foot--client">
+              Looking for a designer? <Link to="/architects">Browse professionals</Link>
             </div>
           </>
         )}

@@ -7,7 +7,7 @@ import { hasContactDetails } from '../../lib/rules';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Field';
-import { Notice, EmptyState } from '../../components/ui/Feedback';
+import { Notice, EmptyState, toast } from '../../components/ui/Feedback';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import type { Service } from '../../types/domain';
 
@@ -54,7 +54,8 @@ export function ServicesPage() {
                   : [...profile.services, service],
               });
               setEdit(null);
-              setMessage('Your service is saved.');
+              setMessage('');
+              toast('Service saved');
             }}
           >
             <div className="panel-heading">
@@ -93,13 +94,22 @@ export function ServicesPage() {
                 <option value="contact_for_pricing">Contact for pricing</option>
                 <option value="starting_from">Starting from</option>
                 <option value="fixed">Fixed price</option>
+                <option value="per_sqft">Per sq ft</option>
+                <option value="percent">% of project cost</option>
               </Select>
               {edit.priceType !== 'contact_for_pricing' && (
                 <Input
-                  label="Price (₹)"
+                  label={
+                    edit.priceType === 'percent'
+                      ? 'Percentage of project cost (%)'
+                      : edit.priceType === 'per_sqft'
+                        ? 'Rate per sq ft (₹)'
+                        : 'Price (₹)'
+                  }
                   type="number"
-                  min={1}
-                  step={1}
+                  min={edit.priceType === 'percent' ? 0.5 : 1}
+                  max={edit.priceType === 'percent' ? 50 : undefined}
+                  step={edit.priceType === 'percent' ? 0.5 : 1}
                   required
                   value={edit.price ?? ''}
                   onChange={(e) => setEdit({ ...edit, price: Number(e.target.value) })}
@@ -155,6 +165,7 @@ export function ServicesPage() {
         onConfirm={() => {
           update({ services: profile.services.filter((s) => s.id !== remove?.id) });
           if (edit?.id === remove?.id) setEdit(null);
+          toast('Service removed');
         }}
       >
         <p>

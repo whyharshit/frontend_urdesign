@@ -6,11 +6,11 @@ import { useLocalDraft } from '../../hooks/useLocalDraft';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Field';
-import { Notice, EmptyState, StatusBadge } from '../../components/ui/Feedback';
+import { Notice, EmptyState, StatusBadge, toast } from '../../components/ui/Feedback';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { PROJECT_TYPES, CONTACT_WARNING } from '../../config/catalog';
+import { PROJECT_TYPES, CONTACT_WARNING, AREA_UNITS } from '../../config/catalog';
 import { hasContactDetails } from '../../lib/rules';
-import { uid } from '../../lib/format';
+import { joinMeasure, splitMeasure, uid } from '../../lib/format';
 import { readDemoImage } from '../../services/demoImages';
 import type { Project } from '../../types/domain';
 
@@ -71,7 +71,10 @@ export function PortfolioPage() {
         title="Remove this project?"
         confirmLabel="Remove project"
         onClose={() => setRemove(null)}
-        onConfirm={() => update({ projects: profile.projects.filter((p) => p.id !== remove?.id) })}
+        onConfirm={() => {
+          update({ projects: profile.projects.filter((p) => p.id !== remove?.id) });
+          toast('Project removed');
+        }}
       >
         <p>
           {remove?.title} and its images will be removed. If this is your last project with a photo,
@@ -82,7 +85,7 @@ export function PortfolioPage() {
   );
 }
 
-export function ProjectEditor() {
+export function ProjectEditor({ onSaved }: { onSaved?: () => void } = {}) {
   const { projectId } = useParams();
   const { profile, ready } = useOwnProfile();
   const project = profile.projects.find((p) => p.id === projectId);
@@ -96,10 +99,10 @@ export function ProjectEditor() {
         action="Back to portfolio"
       />
     );
-  return <ProjectEditorForm key={projectId || 'new'} project={project} />;
+  return <ProjectEditorForm key={projectId || 'new'} project={project} onSaved={onSaved} />;
 }
 
-function ProjectEditorForm({ project }: { project?: Project }) {
+function ProjectEditorForm({ project, onSaved }: { project?: Project; onSaved?: () => void }) {
   const { profile, update } = useOwnProfile();
   const navigate = useNavigate();
   const key = `urdesigner.draft.project.${project?.id || 'new'}`;
@@ -120,6 +123,8 @@ function ProjectEditorForm({ project }: { project?: Project }) {
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [declared, setDeclared] = useState(!!project);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const area = splitMeasure(draft.area, AREA_UNITS, 'sq ft');
   const patch = (values: Partial<Project>) => setDraft((d) => ({ ...d, ...values }));
   const upload = async (files: FileList | null) => {
     if (!files) return;
@@ -165,7 +170,8 @@ function ProjectEditorForm({ project }: { project?: Project }) {
         onSubmit={(e) => {
           e.preventDefault();
           if (!draft.images.length) {
-            setErrors(['Add at least one image before saving.']);
+            setErrors(['Add at least one photo before saving. The first photo is the cover.']);
+            document.getElementById('project-photos')?.scrollIntoView({ block: 'center' });
             return;
           }
           const saved = {
@@ -184,7 +190,9 @@ function ProjectEditorForm({ project }: { project?: Project }) {
           } catch {
             /* Session state is still usable. */
           }
-          navigate('/dashboard/portfolio');
+          toast(project ? 'Project updated' : 'Project added');
+          if (onSaved) onSaved();
+          else navigate('/dashboard/portfolio');
         }}
       >
         {storageFailed && (
@@ -209,6 +217,7 @@ function ProjectEditorForm({ project }: { project?: Project }) {
             <Select
               label="Project type"
               value={draft.type}
+              required
               onChange={(e) => patch({ type: e.target.value })}
             >
               {PROJECT_TYPES.map((t) => (
@@ -227,16 +236,30 @@ function ProjectEditorForm({ project }: { project?: Project }) {
               type="number"
               min={1950}
               max={new Date().getFullYear()}
-              value={draft.year}
+              required
+              value={draft.year || ''}
               onChange={(e) => patch({ year: Number(e.target.value) })}
             />
-            <Input
-              label="Project area"
-              maxLength={40}
-              placeholder="e.g. 1,850 sq ft"
-              value={draft.area}
-              onChange={(e) => patch({ area: e.target.value })}
-            />
+            <div className="measure-field">
+              <Input
+                label="Project area (optional)"
+                type="number"
+                min={1}
+                step="any"
+                placeholder="e.g. 1850"
+                value={area.amount}
+                onChange={(e) => patch({ area: joinMeasure(e.target.value, area.unit) })}
+              />
+              <Select
+                label="Area unit"
+                value={area.unit}
+                onChange={(e) => patch({ area: joinMeasure(area.amount, e.target.value) })}
+              >
+                {AREA_UNITS.map((u) => (
+                  <option key={u}>{u}</option>
+                ))}
+              </Select>
+            </div>
             <Select
               label="Project status"
               value={draft.status}
@@ -261,11 +284,14 @@ function ProjectEditorForm({ project }: { project?: Project }) {
             <Notice tone="warning">{CONTACT_WARNING}</Notice>
           )}
         </section>
-        <section className="panel stack">
+        <section className="panel stack" id="project-photos">
           <div className="section-title" style={{ marginBottom: 0 }}>
             <span>02</span>
-            <h2>A picture of your practice</h2>
+            <h2>Project photos</h2>
           </div>
+          <p className="small">
+            The first photo is the cover. Drag photos to reorder them, or use the arrows.
+          </p>
           <div className="upload-area">
             <ImagePlus size={30} />
             <h3>Make your work the focal point.</h3>
@@ -302,8 +328,27 @@ function ProjectEditorForm({ project }: { project?: Project }) {
           ))}
           <div className="image-editor-grid">
             {draft.images.map((src, i) => (
-              <div className="image-editor-item" key={`${i}-${src.slice(-15)}`}>
-                <img src={src} alt={`Project image ${i + 1}`} />
+              <div
+                className={`image-editor-item ${dragging === i ? 'is-dragging' : ''} ${i === 0 ? 'is-cover' : ''}`}
+                key={`${i}-${src.slice(-15)}`}
+                draggable={!busy}
+                onDragStart={(e) => {
+                  setDragging(i);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragging !== null && dragging !== i) reorder(dragging, i);
+                  setDragging(null);
+                }}
+                onDragEnd={() => setDragging(null)}
+              >
+                {i === 0 && <span className="cover-badge">Cover</span>}
+                <img src={src} alt={`Project image ${i + 1}`} draggable={false} />
                 <div className="button-row">
                   <Button
                     variant="ghost"
