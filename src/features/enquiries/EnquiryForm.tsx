@@ -1,19 +1,35 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Check, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight, Send } from 'lucide-react';
 import { useDemo } from '../../hooks/useDemo';
 import { useLocalDraft } from '../../hooks/useLocalDraft';
 import { Avatar } from '../../components/professionals/ProfessionalCard';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button, ButtonLink } from '../../components/ui/Button';
-import { Input, Select, Textarea } from '../../components/ui/Field';
-import { EmptyState, Notice } from '../../components/ui/Feedback';
+import { Checkbox, CityInput, Input, Select, Textarea } from '../../components/ui/Field';
+import { EmptyState, Notice, toast } from '../../components/ui/Feedback';
 import { DemoNotice } from '../../components/ui/DemoNotice';
 import { OtpForm } from '../auth/OtpForm';
-import { CITIES, PROJECT_TYPES, SERVICES, CONTACT_WARNING } from '../../config/catalog';
+import {
+  AREA_UNITS,
+  BUDGETS,
+  CONTACT_WARNING,
+  IS_STAGING,
+  PROJECT_TYPES,
+} from '../../config/catalog';
 import { canContact, hasContactDetails } from '../../lib/rules';
-import { uid } from '../../lib/format';
-import type { Requirement } from '../../types/domain';
+import {
+  capitaliseWords,
+  experienceLabel,
+  joinMeasure,
+  plural,
+  slugify,
+  splitMeasure,
+  uid,
+} from '../../lib/format';
+import type { DemoState, Professional, Requirement } from '../../types/domain';
+
+const NOT_SURE = 'Not sure yet';
 
 export function EnquiryForm() {
   const { slug } = useParams();
@@ -38,28 +54,156 @@ export function EnquiryForm() {
   return <EnquiryFormContent key={slug} providerId={professional.id} />;
 }
 
+/** Two or three practices in the same city or offering the same service, not yet contacted. */
+function similarProfessionals(state: DemoState, requirement: Requirement, exclude: string) {
+  const contacted = new Set(
+    state.enquiries.filter((e) => e.requirementId === requirement.id).map((e) => e.providerId),
+  );
+  return state.providers
+    .filter((p) => p.status === 'published' && p.id !== exclude && !contacted.has(p.id))
+    .map((p) => ({
+      p,
+      score:
+        ([p.city, ...(p.workCities || [])].some((c) => slugify(c) === slugify(requirement.city))
+          ? 2
+          : 0) + (p.services.some((s) => s.category === requirement.service) ? 1 : 0),
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(({ p }) => p);
+}
+
+function SentPage({
+  requirementId,
+  professional,
+}: {
+  requirementId: string;
+  professional: Professional;
+}) {
+  const { state, dispatch } = useDemo();
+  const requirement = state.requirements.find((r) => r.id === requirementId)!;
+  const [suggested] = useState(() => similarProfessionals(state, requirement, professional.id));
+  const contacted = state.enquiries.filter((e) => e.requirementId === requirementId);
+  const left = 5 - contacted.length;
+  return (
+    <div className="container success-page">
+      <div className="success-mark success-mark--animated">
+        <Check size={28} />
+      </div>
+      <span className="eyebrow">THE START OF SOMETHING GOOD</span>
+      <h1>Your idea is on its way.</h1>
+      <p>
+        {professional.studio || professional.name} can now review your project and send a written
+        proposal. Your contact details stay private until you accept.
+      </p>
+      {IS_STAGING && (
+        <Notice tone="success">
+          Saved to this browser’s demo. You can continue the professional’s side of the journey in
+          the workspace.
+        </Notice>
+      )}
+      {suggested.length > 0 && (
+        <section className="similar-pros">
+          <h2>Get more perspectives</h2>
+          <p className="small">
+            Send the same enquiry to similar practices — no retyping. You can contact{' '}
+            {plural(Math.max(0, left), 'more professional')}.
+          </p>
+          <div className="similar-list">
+            {suggested.map((p) => {
+              const sent = contacted.some((e) => e.providerId === p.id);
+              const blocked = !sent && canContact(state, requirementId, p.id);
+              return (
+                <article className="similar-row" key={p.id}>
+                  <Avatar professional={p} />
+                  <div>
+                    <Link to={`/p/${p.slug}`} className="text-link">
+                      <h3>{p.studio || p.name}</h3>
+                    </Link>
+                    <p className="small">
+                      {p.type} · {p.city} · {experienceLabel(p.years)}
+                    </p>
+                  </div>
+                  {sent ? (
+                    <span className="status status--accepted">Sent</span>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      disabled={!!blocked}
+                      title={blocked || undefined}
+                      onClick={() => {
+                        dispatch({
+                          type: 'contact',
+                          requirement,
+                          providerId: p.id,
+                          id: uid(),
+                          date: new Date().toISOString(),
+                        });
+                        toast(`Enquiry sent to ${p.studio || p.name}`);
+                      }}
+                    >
+                      <Send size={15} /> Send this enquiry to them too
+                    </Button>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      <div className="button-row">
+        <ButtonLink to="/my-enquiries">View my enquiries</ButtonLink>
+        <ButtonLink variant="secondary" to={`/architects?requirement=${requirementId}`}>
+          Find another professional <ArrowRight size={16} />
+        </ButtonLink>
+      </div>
+    </div>
+  );
+}
+
 function EnquiryFormContent({ providerId }: { providerId: string }) {
   const { state, dispatch } = useDemo();
   const [params] = useSearchParams();
   const professional = state.providers.find((p) => p.id === providerId)!;
+  const client = state.session.client;
+  // A signed-in client can only reuse their own projects.
+  const ownRequirements = client
+    ? state.requirements.filter((r) => r.client?.phone === client.phone)
+    : [];
   const [step, setStep] = useState(1);
-  const [reuse, setReuse] = useState(params.get('requirement') || '');
+  const [reuse, setReuse] = useState(
+    ownRequirements.some((r) => r.id === params.get('requirement'))
+      ? params.get('requirement')!
+      : '',
+  );
   const [sent, setSent] = useState('');
   const [error, setError] = useState('');
+  const services = professional.services.map((s) => s.category);
   const [draft, setDraft, failed] = useLocalDraft('urdesigner.draft.requirement', {
     title: '',
     projectType: 'Residential',
     city: professional.city,
-    service: professional.services[0]?.category || SERVICES[0],
+    service: services[0] || NOT_SURE,
     description: '',
     budget: '',
     timeline: '',
     size: '',
   });
+  const [you, setYou] = useState({
+    name: client?.name || '',
+    email: client?.email || '',
+    phone: client?.phone || '',
+  });
+  const size = splitMeasure(draft.size, AREA_UNITS, 'sq ft');
   const patch = (key: keyof typeof draft, value: string) =>
     setDraft((d) => ({ ...d, [key]: value }));
-  const existing = state.requirements.find((r) => r.id === reuse);
+  const existing = ownRequirements.find((r) => r.id === reuse && !r.closedAt);
   const blocked = existing ? canContact(state, existing.id, providerId) : null;
+  // Drafts saved for another professional may name a service this one does not offer.
+  const service = [...services, NOT_SURE].includes(draft.service)
+    ? draft.service
+    : services[0] || NOT_SURE;
   const send = (requirement: Requirement) => {
     const reason = canContact(state, requirement.id, providerId);
     if (reason) {
@@ -90,30 +234,21 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
       }
     }
   };
-  if (sent)
-    return (
-      <div className="container success-page">
-        <div className="success-mark">
-          <Check size={28} />
-        </div>
-        <span className="eyebrow">THE START OF SOMETHING GOOD</span>
-        <h1>Your idea is on its way.</h1>
-        <p>
-          {professional.studio || professional.name} can now review your project and send a written
-          proposal. Your contact details stay private until you accept.
-        </p>
-        <Notice tone="success">
-          Saved to this browser’s demo. You can continue the professional’s side of the journey in
-          the workspace.
-        </Notice>
-        <div className="button-row">
-          <ButtonLink to="/my-enquiries">View my enquiries</ButtonLink>
-          <ButtonLink variant="secondary" to={`/architects?requirement=${sent}`}>
-            Find another professional <ArrowRight size={16} />
-          </ButtonLink>
-        </div>
-      </div>
-    );
+  const sendNew = (contact: { name: string; email: string; phone: string }) =>
+    send({
+      ...draft,
+      service,
+      title: draft.title.trim(),
+      description: draft.description.trim(),
+      city: draft.city.trim(),
+      id: uid(),
+      createdAt: new Date().toISOString(),
+      client: contact,
+    });
+  if (sent) return <SentPage requirementId={sent} professional={professional} />;
+  const steps = client
+    ? ['Your project', 'Review & send']
+    : ['Your project', 'About you', 'Verify & send'];
   return (
     <div className="container flow-page">
       <div className="breadcrumbs">
@@ -124,7 +259,7 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
       <PageHeading
         eyebrow="EVERY GOOD SPACE STARTS WITH AN IDEA"
         title="Tell us what you have in mind."
-        description="Write it once. Share it with up to five professionals. Make room for possibilities."
+        description="Write it once. After sending, you can share it with up to four more professionals."
       />
       <div className="flow-layout">
         <div className="stack">
@@ -135,7 +270,7 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
             </Notice>
           )}
           {error && <Notice tone="warning">{error}</Notice>}
-          {state.requirements.length > 0 && step === 1 && (
+          {ownRequirements.some((r) => !r.closedAt) && step === 1 && (
             <Select
               label="Start a new project or reuse a requirement"
               value={reuse}
@@ -145,11 +280,13 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
               }}
             >
               <option value="">A new project</option>
-              {state.requirements.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.title}
-                </option>
-              ))}
+              {ownRequirements
+                .filter((r) => !r.closedAt)
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.title}
+                  </option>
+                ))}
             </Select>
           )}
           {existing ? (
@@ -160,8 +297,11 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
                 {existing.city} · {existing.service}
               </p>
               <Notice>
-                {state.enquiries.filter((e) => e.requirementId === existing.id).length} of 5
-                professionals contacted. Your original requirement is sent without retyping.
+                {plural(
+                  state.enquiries.filter((e) => e.requirementId === existing.id).length,
+                  'professional',
+                )}{' '}
+                of 5 contacted. Your original requirement is sent without retyping.
               </Notice>
               {blocked && <Notice tone="warning">{blocked}</Notice>}
               <Button disabled={!!blocked} onClick={() => send(existing)}>
@@ -173,10 +313,20 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
             </div>
           ) : (
             <div className="panel">
-              <div className="flow-steps">
-                {['Your project', 'About you', 'Verify & send'].map((title, i) => (
-                  <span key={title} className={step === i + 1 ? 'active' : ''}>
-                    <b>{i + 1}</b>
+              <div
+                className="flow-steps"
+                style={
+                  {
+                    '--progress': `${((step - 1) / (steps.length - 1)) * 100}%`,
+                  } as React.CSSProperties
+                }
+              >
+                {steps.map((title, i) => (
+                  <span
+                    key={title}
+                    className={step === i + 1 ? 'active' : step > i + 1 ? 'done' : ''}
+                  >
+                    <b>{step > i + 1 ? <Check size={12} /> : i + 1}</b>
                     {title}
                   </span>
                 ))}
@@ -208,24 +358,23 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
                         <option key={t}>{t}</option>
                       ))}
                     </Select>
-                    <Select
+                    <CityInput
                       label="Project city"
                       value={draft.city}
-                      onChange={(e) => patch('city', e.target.value)}
-                    >
-                      {CITIES.map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </Select>
+                      required
+                      onChange={(value) => patch('city', value)}
+                    />
                   </div>
                   <Select
                     label="Service required"
-                    value={draft.service}
+                    value={service}
+                    hint={`Services ${professional.studio || professional.name} offers.`}
                     onChange={(e) => patch('service', e.target.value)}
                   >
-                    {SERVICES.map((s) => (
+                    {services.map((s) => (
                       <option key={s}>{s}</option>
                     ))}
+                    <option>{NOT_SURE}</option>
                   </Select>
                   <Textarea
                     label="What would you like to create?"
@@ -235,7 +384,7 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
                     minLength={20}
                     maxLength={1000}
                     rows={5}
-                    hint={`${draft.description.length}/1000 characters · At least 20 characters.`}
+                    hint={`${draft.description.trim().length}/1000 characters · At least 20 characters.`}
                     onChange={(e) => patch('description', e.target.value)}
                   />
                   {hasContactDetails(draft.description) && (
@@ -243,28 +392,44 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
                   )}
                   <div className="form-grid">
                     <Select
-                      label="Project budget (optional)"
+                      label="Total project budget (optional)"
+                      hint="What you expect to spend on construction or furnishing — not the design fee."
                       value={draft.budget}
                       onChange={(e) => patch('budget', e.target.value)}
                     >
                       <option value="">Open to discussion</option>
-                      {[
-                        'Under ₹5 lakh',
-                        '₹5–10 lakh',
-                        '₹10–20 lakh',
-                        '₹20–50 lakh',
-                        'Over ₹50 lakh',
-                      ].map((b) => (
+                      {BUDGETS.map((b) => (
                         <option key={b}>{b}</option>
                       ))}
                     </Select>
-                    <Input
-                      label="Project size (optional)"
-                      maxLength={40}
-                      placeholder="e.g. 1,850 sq ft"
-                      value={draft.size}
-                      onChange={(e) => patch('size', e.target.value)}
-                    />
+                    <div className="measure-field">
+                      <Input
+                        label="Project size (optional)"
+                        type="number"
+                        min={1}
+                        step="any"
+                        inputMode="decimal"
+                        placeholder="e.g. 1850"
+                        value={size.amount}
+                        onChange={(e) =>
+                          patch(
+                            'size',
+                            e.target.value
+                              ? joinMeasure(e.target.value, size.unit) || e.target.value
+                              : '',
+                          )
+                        }
+                      />
+                      <Select
+                        label="Unit"
+                        value={size.unit}
+                        onChange={(e) => patch('size', joinMeasure(size.amount, e.target.value))}
+                      >
+                        {AREA_UNITS.map((u) => (
+                          <option key={u}>{u}</option>
+                        ))}
+                      </Select>
+                    </div>
                   </div>
                   <Select
                     label="When would you like to start? (optional)"
@@ -286,18 +451,32 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
                     Continue <ArrowRight size={16} />
                   </Button>
                 </form>
+              ) : client ? (
+                <div className="stack">
+                  <h3>Sending as {client.name}</h3>
+                  <p className="small">
+                    {draft.title} · {draft.city} · {service}. Your contact details stay private
+                    until you accept a proposal.
+                  </p>
+                  <Button onClick={() => sendNew(client)}>
+                    <Send size={16} /> Send to {professional.studio || professional.name}
+                  </Button>
+                  <Button variant="ghost" type="button" onClick={() => setStep(1)}>
+                    Back to project
+                  </Button>
+                </div>
               ) : step === 2 ? (
                 <form
                   className="stack"
                   onSubmit={(e) => {
                     e.preventDefault();
+                    setYou((v) => ({ ...v, name: capitaliseWords(v.name.trim()) }));
                     setStep(3);
                   }}
                 >
                   <h3>A first introduction starts with you.</h3>
                   <p className="small">
-                    Your name, email and mobile remain private until you accept a proposal. Use
-                    sample details in this preview.
+                    Your name, email and mobile remain private until you accept a proposal.
                   </p>
                   <Input
                     label="Your name"
@@ -305,8 +484,18 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
                     maxLength={80}
                     required
                     autoComplete="name"
+                    value={you.name}
+                    onChange={(e) => setYou({ ...you, name: e.target.value })}
+                    onBlur={() => setYou((v) => ({ ...v, name: capitaliseWords(v.name) }))}
                   />
-                  <Input label="Email" type="email" required autoComplete="email" />
+                  <Input
+                    label="Email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={you.email}
+                    onChange={(e) => setYou({ ...you, email: e.target.value })}
+                  />
                   <Input
                     label="Mobile number"
                     type="tel"
@@ -315,15 +504,14 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
                     maxLength={10}
                     required
                     hint="10-digit Indian mobile number"
+                    value={you.phone}
+                    onChange={(e) => setYou({ ...you, phone: e.target.value.replace(/\D/g, '') })}
                   />
-                  <label className="checkbox">
-                    <input type="checkbox" required />
-                    <span>
-                      I agree to the <Link to="/terms">Terms</Link> and{' '}
-                      <Link to="/privacy">Privacy Policy</Link>, and consent to account creation
-                      when my mobile is verified.
-                    </span>
-                  </label>
+                  <Checkbox required>
+                    I agree to the <Link to="/terms">Terms</Link> and{' '}
+                    <Link to="/privacy">Privacy Policy</Link>, and consent to account creation when
+                    my mobile is verified.
+                  </Checkbox>
                   <Button type="submit">Continue to verification</Button>
                   <Button variant="ghost" type="button" onClick={() => setStep(1)}>
                     Back to project
@@ -331,10 +519,12 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
                 </form>
               ) : (
                 <OtpForm
+                  phone={you.phone}
                   onBack={() => setStep(2)}
-                  onVerified={() =>
-                    send({ ...draft, id: uid(), createdAt: new Date().toISOString() })
-                  }
+                  onVerified={() => {
+                    dispatch({ type: 'login', role: 'client', client: you });
+                    sendNew(you);
+                  }}
                 />
               )}
             </div>
@@ -347,7 +537,7 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
           <p>
             {professional.type}
             <br />
-            {professional.city} · {professional.years} years experience
+            {professional.city} · {experienceLabel(professional.years)}
           </p>
           <hr className="divider" />
           <h3>On your terms.</h3>

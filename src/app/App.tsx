@@ -12,9 +12,11 @@ import {
   ClientEnquiries,
   ClientProposal,
   CompareProposals,
+  SavedProfessionals,
 } from '../features/enquiries/ClientEnquiries';
 import { DashboardPage } from '../features/workspace/DashboardPage';
 import { ProfileEditor, PublishPage } from '../features/workspace/ProfileEditor';
+import { SetupPage } from '../features/workspace/SetupPage';
 import { ServicesPage } from '../features/workspace/ServicesPage';
 import { PortfolioPage, ProjectEditor } from '../features/workspace/PortfolioPage';
 import { EnquiriesPage, EnquiryDetail, ProposalEditor } from '../features/workspace/EnquiriesPage';
@@ -24,7 +26,13 @@ import {
   PaymentPage,
   ReferralsPage,
 } from '../features/connects/ConnectsPages';
-import { AdminProfessionals, AdminPayments, AdminEnquiries } from '../features/admin/AdminPages';
+import {
+  AdminProfessionals,
+  AdminPayments,
+  AdminEnquiries,
+  AdminReports,
+  AdminLogin,
+} from '../features/admin/AdminPages';
 import { DemoPage, LegalPage, NotFoundPage } from '../features/static/StaticPages';
 import { getPageMetadata } from './metadata';
 
@@ -90,15 +98,18 @@ export function App() {
             <Route path="forgot-password" element={<AuthPage mode="reset" />} />
             <Route path="enquiry/:slug" element={<EnquiryForm />} />
             <Route path="my-enquiries" element={<ClientEnquiries />} />
+            <Route path="my-enquiries/saved" element={<SavedProfessionals />} />
             <Route path="my-enquiries/proposal/:enquiryId" element={<ClientProposal />} />
             <Route path="my-enquiries/compare/:requirementId" element={<CompareProposals />} />
             <Route path="terms" element={<LegalPage />} />
             <Route path="privacy" element={<LegalPage privacy />} />
             <Route path="playground" element={<DemoPage />} />
+            <Route path="admin/login" element={<AdminLogin />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
           <Route path="dashboard" element={<WorkspaceLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="setup" element={<SetupPage />} />
             <Route path="profile" element={<ProfileEditor />} />
             <Route path="publish" element={<PublishPage />} />
             <Route path="services" element={<ServicesPage />} />
@@ -116,6 +127,7 @@ export function App() {
           </Route>
           <Route path="admin" element={<WorkspaceLayout admin />}>
             <Route index element={<AdminProfessionals />} />
+            <Route path="reports" element={<AdminReports />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="enquiries" element={<AdminEnquiries />} />
             <Route path="*" element={<NotFoundPage />} />

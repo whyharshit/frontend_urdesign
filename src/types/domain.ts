@@ -2,13 +2,15 @@ export type ProfessionalType =
   | 'Architect'
   | 'Interior Designer'
   | 'Architect & Interior Designer'
+  | 'Landscape Architect'
+  | 'Lighting Designer'
   | 'Other Design Professional';
 export type ProfileStatus = 'published' | 'draft' | 'unpublished' | 'suspended';
 export interface Service {
   id: string;
   category: string;
   description: string;
-  priceType: 'starting_from' | 'fixed' | 'contact_for_pricing';
+  priceType: 'starting_from' | 'fixed' | 'per_sqft' | 'percent' | 'contact_for_pricing';
   price?: number;
 }
 export interface Project {
@@ -42,6 +44,15 @@ export interface Professional {
   mobileVerified: boolean;
   completeness: number;
   lastActive: string;
+  /** Data-URL or path of an uploaded logo / photo. Initials are shown without one. */
+  photo?: string;
+  cover?: string;
+  /** Self-declared Council of Architecture number. Shown as "provided", never "verified". */
+  coaNumber?: string;
+  links?: string[];
+  workCities?: string[];
+  /** The public URL may be customised once. */
+  slugEdited?: boolean;
 }
 export type EnquiryStatus =
   | 'sent'
@@ -50,6 +61,7 @@ export type EnquiryStatus =
   | 'accepted'
   | 'declined_by_provider'
   | 'declined_by_client'
+  | 'withdrawn'
   | 'unavailable';
 export interface Requirement {
   id: string;
@@ -62,6 +74,26 @@ export interface Requirement {
   timeline: string;
   size: string;
   createdAt: string;
+  closedAt?: string;
+  /** Private client contact, released to a professional only after acceptance. */
+  client?: ClientContact;
+}
+export interface ClientContact {
+  name: string;
+  email: string;
+  phone: string;
+}
+export interface Session {
+  client: ClientContact | null;
+  professional: boolean;
+  admin: boolean;
+}
+export interface Report {
+  id: string;
+  providerId: string;
+  reason: string;
+  details: string;
+  date: string;
 }
 export interface Enquiry {
   id: string;
@@ -98,7 +130,7 @@ export interface Payment {
   reason?: string;
 }
 export interface DemoState {
-  version: 1;
+  version: 2;
   providers: Professional[];
   requirements: Requirement[];
   enquiries: Enquiry[];
@@ -106,10 +138,20 @@ export interface DemoState {
   balance: number;
   ledger: LedgerEntry[];
   payments: Payment[];
+  session: Session;
+  saved: string[];
+  reports: Report[];
+  /** Profile-view timestamps per professional id. */
+  views: Record<string, string[]>;
+  /** Private contact details per professional id, released after acceptance. */
+  contacts: Record<string, { phone: string; email: string }>;
 }
 export interface SearchFilters {
   city: string;
   type: string;
   service: string;
   experience: string;
+  q: string;
+  projectType: string;
+  sort: string;
 }

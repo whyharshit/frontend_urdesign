@@ -10,7 +10,7 @@ import {
 import { createSeedState } from '../data/seed';
 import { demoReducer, type DemoAction } from '../data/demoReducer';
 import type { DemoState } from '../types/domain';
-const STORAGE_KEY = 'urdesigner.demo.v1';
+const STORAGE_KEY = 'urdesigner.demo.v2';
 const DemoContext = createContext<{
   state: DemoState;
   dispatch: Dispatch<DemoAction>;
@@ -27,7 +27,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (saved) {
         const parsed = JSON.parse(saved) as DemoState;
         if (
-          parsed.version === 1 &&
+          parsed.version === 2 &&
+          parsed.session &&
+          Array.isArray(parsed.saved) &&
+          Array.isArray(parsed.reports) &&
           Array.isArray(parsed.providers) &&
           Array.isArray(parsed.enquiries) &&
           Array.isArray(parsed.payments) &&

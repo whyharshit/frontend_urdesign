@@ -63,6 +63,8 @@ export const seedProviders: Professional[] = [
     mobileVerified: true,
     completeness: 98,
     lastActive: '2026-09-26',
+    coaNumber: 'CA/2016/78231',
+    workCities: ['Gandhinagar', 'Vadodara'],
   },
   {
     id: 'p2',
@@ -236,9 +238,56 @@ export const seedProviders: Professional[] = [
     lastActive: '2026-09-21',
   },
 ];
+const seedContacts: DemoState['contacts'] = {
+  p1: { phone: '9824012345', email: 'hello@aanganstudio.in' },
+  p2: { phone: '9879054321', email: 'studio@earthandform.in' },
+  p3: { phone: '9822011122', email: 'office@formandfield.in' },
+  p4: { phone: '9820033445', email: 'hello@livedinstudio.in' },
+  p5: { phone: '9845066778', email: 'studio@ateliernorth.in' },
+  p6: { phone: '9898077889', email: 'grow@studiomitti.in' },
+};
+const sampleClient = { name: 'Meera Iyer', email: 'meera.iyer@example.com', phone: '9812345678' };
+
+/** A brand-new professional account: nothing published, nothing borrowed from the sample studio. */
+export function blankProfessional(id: string): Professional {
+  return {
+    id,
+    slug: `new-practice-${id}`,
+    name: '',
+    studio: '',
+    type: 'Architect',
+    city: '',
+    years: 0,
+    qualification: '',
+    bio: '',
+    initials: 'UD',
+    color: '#e1d8c5',
+    services: [],
+    projects: [],
+    languages: [],
+    status: 'draft',
+    mobileVerified: true,
+    completeness: 0,
+    lastActive: new Date().toISOString().slice(0, 10),
+    workCities: [],
+    links: [],
+  };
+}
+
+/** A believable week of profile views, relative to today. */
+function recentViews(count: number) {
+  const now = Date.now();
+  return Array.from({ length: count }, (_, i) => new Date(now - i * 22_000_000).toISOString());
+}
+
 export function createSeedState(): DemoState {
   return {
-    version: 1,
+    version: 2,
+    session: { client: null, professional: false, admin: false },
+    saved: [],
+    reports: [],
+    views: { p1: recentViews(23) },
+    contacts: structuredClone(seedContacts),
     providers: structuredClone(seedProviders),
     balance: 200,
     ledger: [
@@ -258,6 +307,7 @@ export function createSeedState(): DemoState {
         timeline: 'Within 3 months',
         size: '1,850 sq ft',
         createdAt: '2026-09-26T10:00:00Z',
+        client: sampleClient,
       },
       {
         id: 'r2',
@@ -271,6 +321,7 @@ export function createSeedState(): DemoState {
         timeline: 'Within 1 month',
         size: '1,200 sq ft',
         createdAt: '2026-09-25T10:00:00Z',
+        client: sampleClient,
       },
     ],
     enquiries: [

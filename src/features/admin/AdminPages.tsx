@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Users, CreditCard, Send, Flag, ArrowUpRight } from 'lucide-react';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Users, CreditCard, Send, Flag, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { ADMIN_EMAIL, ADMIN_PASSWORD } from '../../config/catalog';
+import { Brand } from '../../shell/Brand';
 import { useDemo } from '../../hooks/useDemo';
 import { hasContactDetails } from '../../lib/rules';
 import { money, dateLabel } from '../../lib/format';
@@ -9,7 +11,7 @@ import { StatCard } from '../../components/ui/StatCard';
 import { Avatar } from '../../components/professionals/ProfessionalCard';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Field';
-import { Notice, StatusBadge, EmptyState } from '../../components/ui/Feedback';
+import { Notice, StatusBadge, EmptyState, toast } from '../../components/ui/Feedback';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 export function AdminProfessionals() {
@@ -34,10 +36,6 @@ export function AdminProfessionals() {
         title="Professionals & moderation"
         description="Profiles publish immediately when complete. Review concerns and act with context."
       />
-      <Notice>
-        Admin preview is open for frontend testing. Production admin access, audit records and
-        permissions require the backend.
-      </Notice>
       <div className="stats-grid">
         <StatCard
           label="Professionals"
@@ -58,9 +56,9 @@ export function AdminProfessionals() {
           icon={<CreditCard size={18} />}
         />
         <StatCard
-          label="Flagged proposals"
-          value={state.proposals.filter((p) => p.flagged).length}
-          detail="Contact-detail warnings"
+          label="Reported profiles"
+          value={state.reports.length}
+          detail="Waiting for review"
           icon={<Flag size={18} />}
         />
       </div>
@@ -91,6 +89,11 @@ export function AdminProfessionals() {
               </p>
               {hasContactDetails(p.bio) && (
                 <p className="error-text">Bio contains possible contact details</p>
+              )}
+              {state.reports.some((r) => r.providerId === p.id) && (
+                <Link className="error-text" to="/admin/reports">
+                  {state.reports.filter((r) => r.providerId === p.id).length} report(s)
+                </Link>
               )}
             </div>
             <StatusBadge status={p.status} />
@@ -143,7 +146,7 @@ export function AdminProfessionals() {
             setError('A moderation reason is required. Reopen the action and add a reason.');
             return;
           }
-          if (selection)
+          if (selection) {
             dispatch({
               type: 'moderate',
               providerId: selection.id,
@@ -151,6 +154,8 @@ export function AdminProfessionals() {
               reason,
               date: new Date().toISOString(),
             });
+            toast('Moderation action applied');
+          }
           setError('');
         }}
       >
@@ -401,6 +406,175 @@ export function AdminEnquiries() {
       <Link className="text-link" to="/admin">
         Back to moderation <ArrowUpRight size={15} />
       </Link>
+    </div>
+  );
+}
+
+/** Gate for /admin. Frontend-only for the preview; production must check the session on the server. */
+export function AdminLogin() {
+  const { state, dispatch, ready } = useDemo();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const next = params.get('next')?.startsWith('/admin') ? params.get('next')! : '/admin';
+  if (ready && state.session.admin) return <Navigate to={next} replace />;
+  return (
+    <div className="container flow-page">
+      <form
+        className="panel stack admin-login"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (
+            email.trim().toLowerCase() !== ADMIN_EMAIL.toLowerCase() ||
+            password !== ADMIN_PASSWORD
+          ) {
+            setError('That email and password don’t match an admin account.');
+            return;
+          }
+          dispatch({ type: 'login', role: 'admin' });
+          navigate(next, { replace: true });
+        }}
+      >
+        <Brand />
+        <ShieldCheck size={28} className="accent" />
+        <h1>Admin log in</h1>
+        <p className="small">For the UrDesigner team only.</p>
+        {error && <Notice tone="warning">{error}</Notice>}
+        <Input
+          label="Admin email"
+          type="email"
+          required
+          autoComplete="username"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setError('');
+          }}
+        />
+        <Input
+          label="Password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError('');
+          }}
+        />
+        <Button type="submit">Log in</Button>
+      </form>
+    </div>
+  );
+}
+
+export function AdminReports() {
+  const { state, dispatch } = useDemo();
+  const [selection, setSelection] = useState<{
+    id: string;
+    status: 'unpublished' | 'suspended';
+  } | null>(null);
+  const [reason, setReason] = useState('');
+  const byProvider = state.providers
+    .map((p) => ({ p, reports: state.reports.filter((r) => r.providerId === p.id) }))
+    .filter(({ reports }) => reports.length > 0)
+    .sort((a, b) => b.reports.length - a.reports.length);
+  return (
+    <div className="stack">
+      <PageHeading
+        eyebrow="TRUST & SAFETY"
+        title="Reported profiles"
+        description="Reports from clients about fake, copied or abusive profiles. Most-reported first."
+      />
+      {byProvider.length ? (
+        byProvider.map(({ p, reports }) => (
+          <article className="panel stack-sm" key={p.id}>
+            <div className="moderation-row" style={{ border: 0, padding: 0 }}>
+              <Avatar professional={p} />
+              <div>
+                <h3>{p.studio || p.name}</h3>
+                <p>
+                  {p.name} · {p.city} · {reports.length} report{reports.length === 1 ? '' : 's'}
+                </p>
+              </div>
+              <StatusBadge status={p.status} />
+              <div className="button-row">
+                <ButtonLink variant="ghost" to={`/p/${p.slug}`}>
+                  View
+                </ButtonLink>
+                {p.status === 'published' && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setReason('');
+                      setSelection({ id: p.id, status: 'unpublished' });
+                    }}
+                  >
+                    Unpublish
+                  </Button>
+                )}
+                {p.status !== 'suspended' && (
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      setReason('');
+                      setSelection({ id: p.id, status: 'suspended' });
+                    }}
+                  >
+                    Suspend
+                  </Button>
+                )}
+              </div>
+            </div>
+            <ul className="report-list">
+              {reports.map((r) => (
+                <li key={r.id}>
+                  <strong>{r.reason}</strong> · {dateLabel(r.date)}
+                  {r.details && <p className="small">{r.details}</p>}
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))
+      ) : (
+        <EmptyState
+          title="No reported profiles."
+          description="When a client reports a profile, it appears here for review."
+        />
+      )}
+      <ConfirmDialog
+        open={!!selection}
+        confirmDisabled={!reason.trim()}
+        title={
+          selection?.status === 'suspended'
+            ? 'Suspend this professional?'
+            : 'Unpublish this profile?'
+        }
+        confirmLabel="Apply moderation action"
+        onClose={() => setSelection(null)}
+        onConfirm={() => {
+          if (!selection || !reason.trim()) return;
+          dispatch({
+            type: 'moderate',
+            providerId: selection.id,
+            status: selection.status,
+            reason,
+            date: new Date().toISOString(),
+          });
+          toast('Moderation action applied');
+        }}
+      >
+        <Textarea
+          label="Reason for this action"
+          required
+          value={reason}
+          maxLength={500}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </ConfirmDialog>
     </div>
   );
 }

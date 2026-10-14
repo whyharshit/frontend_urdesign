@@ -2,9 +2,18 @@ import { useEffect, useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Field';
 import { Notice } from '../../components/ui/Feedback';
+import { formatPhone } from '../../lib/format';
 
 /** Visual OTP flow only. Real verification, expiry and throttling belong to the API. */
-export function OtpForm({ onVerified, onBack }: { onVerified: () => void; onBack: () => void }) {
+export function OtpForm({
+  onVerified,
+  onBack,
+  phone,
+}: {
+  onVerified: () => void;
+  onBack: () => void;
+  phone?: string;
+}) {
   const [code, setCode] = useState('');
   const [attempts, setAttempts] = useState(0);
   const [seconds, setSeconds] = useState(30);
@@ -18,9 +27,14 @@ export function OtpForm({ onVerified, onBack }: { onVerified: () => void; onBack
   return (
     <form
       className="stack"
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
         if (locked) return;
+        if (!/^\d{6}$/.test(code)) {
+          setError('Enter the 6-digit code');
+          return;
+        }
         if (code === '123456') onVerified();
         else {
           setAttempts((a) => a + 1);
@@ -30,10 +44,11 @@ export function OtpForm({ onVerified, onBack }: { onVerified: () => void; onBack
     >
       <Notice>
         {locked ? (
-          'Demo locked after three attempts. Return to the previous step to restart. In production, the server enforces a 30-minute lock.'
+          'Too many attempts. Go back and request a new code.'
         ) : (
           <>
-            No SMS is sent in this preview. Enter <strong>123456</strong> to continue.
+            {phone ? `We’ve sent a code to ${formatPhone(phone)}. ` : ''}No SMS is sent in this
+            preview — enter <strong>123456</strong>.
           </>
         )}
       </Notice>
@@ -43,11 +58,12 @@ export function OtpForm({ onVerified, onBack }: { onVerified: () => void; onBack
           value={code}
           autoComplete="one-time-code"
           inputMode="numeric"
-          pattern="[0-9]{6}"
           maxLength={6}
-          required
           disabled={locked}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+          onChange={(e) => {
+            setCode(e.target.value.replace(/\D/g, ''));
+            setError('');
+          }}
           error={error}
         />
       </div>
@@ -64,7 +80,7 @@ export function OtpForm({ onVerified, onBack }: { onVerified: () => void; onBack
           disabled={seconds > 0 || locked}
           onClick={() => {
             setSeconds(30);
-            setError('Use the same demo code: 123456.');
+            setError('Code sent again. In this preview it is still 123456.');
           }}
         >
           Resend code{seconds > 0 ? ` (${seconds}s)` : ''}

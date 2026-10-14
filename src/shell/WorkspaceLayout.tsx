@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   UserRound,
@@ -11,10 +11,13 @@ import {
   ShieldCheck,
   CreditCard,
   ClipboardList,
+  Flag,
+  LogOut,
 } from 'lucide-react';
 import { Brand } from './Brand';
 import { useDemo } from '../hooks/useDemo';
-import { Notice } from '../components/ui/Feedback';
+import { Notice, Toaster } from '../components/ui/Feedback';
+import { IS_STAGING, OWN_PROVIDER_ID } from '../config/catalog';
 const proLinks = [
   { to: '/dashboard', label: 'Overview', Icon: LayoutDashboard, end: true },
   { to: '/dashboard/profile', label: 'My profile', Icon: UserRound },
@@ -26,11 +29,20 @@ const proLinks = [
 ];
 const adminLinks = [
   { to: '/admin', label: 'Professionals', Icon: ShieldCheck, end: true },
+  { to: '/admin/reports', label: 'Reported profiles', Icon: Flag },
   { to: '/admin/payments', label: 'Payment verification', Icon: CreditCard },
   { to: '/admin/enquiries', label: 'Enquiries & proposals', Icon: ClipboardList },
 ];
 export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
-  const { state, storageError } = useDemo();
+  const { state, storageError, ready, dispatch } = useDemo();
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Admin is never open to anyone with the URL: wait for the saved session, then require a login.
+  if (admin && !ready) return <div className="workspace-loading" aria-busy="true" />;
+  if (admin && !state.session.admin)
+    return <Navigate to={`/admin/login?next=${encodeURIComponent(location.pathname)}`} replace />;
+  const own = state.providers.find((p) => p.id === OWN_PROVIDER_ID)!;
+  const openReports = state.reports.length;
   return (
     <div className="workspace">
       <a className="skip-link" href="#main">
@@ -47,26 +59,42 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
               {label === 'Enquiries' && (
                 <span className="nav-count">
                   {
-                    state.enquiries.filter((e) => e.providerId === 'p1' && e.status === 'sent')
-                      .length
+                    state.enquiries.filter(
+                      (e) => e.providerId === OWN_PROVIDER_ID && e.status === 'sent',
+                    ).length
                   }
                 </span>
+              )}
+              {label === 'Reported profiles' && openReports > 0 && (
+                <span className="nav-count">{openReports}</span>
               )}
             </NavLink>
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-help">
-            <span className="small-symbol">✳</span>
-            <h4>A little help goes a long way.</h4>
-            <p>Explore every side of your frontend.</p>
-            <Link to="/playground">
-              Demo guide <ArrowUpRight size={16} />
-            </Link>
-          </div>
+          {IS_STAGING && (
+            <div className="sidebar-help">
+              <span className="small-symbol">✳</span>
+              <h4>A little help goes a long way.</h4>
+              <p>Explore every side of your frontend.</p>
+              <Link to="/playground">
+                Demo guide <ArrowUpRight size={16} />
+              </Link>
+            </div>
+          )}
           <Link to="/architects" className="back-to-site">
             Back to discovery <ArrowUpRight size={16} />
           </Link>
+          <button
+            type="button"
+            className="back-to-site"
+            onClick={() => {
+              dispatch({ type: 'logout', role: admin ? 'admin' : 'professional' });
+              navigate(admin ? '/admin/login' : '/');
+            }}
+          >
+            Log out <LogOut size={16} />
+          </button>
         </div>
       </aside>
       <div className="workspace-main">
@@ -79,16 +107,22 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
                 <strong>{state.balance}</strong> connects
               </Link>
             )}
-            <span className="mini-avatar">{admin ? 'AD' : 'AM'}</span>
+            {!admin && own.photo ? (
+              <img className="mini-avatar" src={own.photo} alt="" />
+            ) : (
+              <span className="mini-avatar">{admin ? 'AD' : own.initials}</span>
+            )}
           </div>
         </header>
-        <div className="demo-strip">
-          <span className="demo-dot" />
-          Frontend demo · Changes are saved in this browser. No real accounts or payments.
-          <Link to="/playground">
-            Switch view <ArrowUpRight size={13} />
-          </Link>
-        </div>
+        {IS_STAGING && (
+          <div className="demo-strip">
+            <span className="demo-dot" />
+            Frontend demo · Changes are saved in this browser. No real accounts or payments.
+            <Link to="/playground">
+              Switch view <ArrowUpRight size={13} />
+            </Link>
+          </div>
+        )}
         <main id="main" tabIndex={-1} className="workspace-content">
           {storageError && (
             <Notice tone="warning">
@@ -99,6 +133,7 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
           <Outlet />
         </main>
       </div>
+      <Toaster />
     </div>
   );
 }
