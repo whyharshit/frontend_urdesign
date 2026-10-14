@@ -8,8 +8,21 @@ export function getPageMetadata(url: string) {
   let description =
     'Discover architects and interior designers in India. Explore portfolios, compare services and connect on your terms with UrDesigner.';
   let status = 200;
+  // Picture for link previews (og:image); a profile or project uses its own photo.
+  let image = '/images/living.jpg';
   if (pathname.startsWith('/architects')) {
     const city = CITIES.find((c) => slugify(c) === pathname.split('/')[2]);
+    const citySlug = pathname.split('/')[2];
+    if (citySlug && !city) {
+      return {
+        title: 'City not found | UrDesigner',
+        description,
+        status: 404,
+        private: true,
+        image,
+        path: pathname,
+      };
+    }
     const filters = ['type', 'service', 'experience']
       .map((key) => searchParams.get(key)?.replaceAll('-', ' '))
       .filter(Boolean);
@@ -20,11 +33,12 @@ export function getPageMetadata(url: string) {
     const [, , slug, , projectId] = pathname.split('/');
     const provider = seedProviders.find((p) => p.slug === slug);
     const project = provider?.projects.find((p) => p.id === projectId);
-    if (provider && (!projectId || project)) {
+    if (provider?.status === 'published' && (!projectId || project)) {
       title = project
         ? `${project.title} · ${provider.studio}`
         : `${provider.studio || provider.name} · ${provider.type} in ${provider.city}`;
       description = project?.description || provider.bio;
+      image = project?.images[0] || provider.cover || provider.projects[0]?.images[0] || image;
     } else {
       title = 'Profile or project unavailable';
       status = 404;
@@ -82,6 +96,8 @@ export function getPageMetadata(url: string) {
     title: `${title} | UrDesigner`,
     description,
     status,
+    image,
+    path: pathname,
     private: /^\/(dashboard|admin|enquiry|my-enquiries|login|join|forgot-password|playground)/.test(
       pathname,
     ),

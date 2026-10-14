@@ -229,3 +229,11 @@ export const IS_STAGING = import.meta.env.DEV || import.meta.env.VITE_STAGING ==
 /** Frontend-only admin gate. Real admin auth must be enforced by the backend. */
 export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@urdesigner.in';
 export const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'UrDesigner@2026';
+
+const packRates = CONNECT_PACKS.map((p) => p.price / p.connects);
+/** What connects cost to buy, cheapest to dearest pack. One source for every rupee figure. */
+export const CONNECT_RATE = { low: Math.min(...packRates), high: Math.max(...packRates) };
+/** Public address used in canonical links, link previews and the sitemap. */
+export const SITE_URL = (
+  import.meta.env.VITE_SITE_URL || 'https://frontend-urdesign.vercel.app'
+).replace(/\/+$/, '');

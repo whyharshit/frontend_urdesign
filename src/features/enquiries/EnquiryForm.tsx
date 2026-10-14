@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Check, ArrowRight, Send } from 'lucide-react';
 import { useDemo } from '../../hooks/useDemo';
@@ -6,7 +6,15 @@ import { useLocalDraft } from '../../hooks/useLocalDraft';
 import { Avatar } from '../../components/professionals/ProfessionalCard';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button, ButtonLink } from '../../components/ui/Button';
-import { Checkbox, CityInput, Input, Select, Textarea } from '../../components/ui/Field';
+import {
+  Checkbox,
+  CityInput,
+  Input,
+  NAME_PATTERN,
+  NAME_TITLE,
+  Select,
+  Textarea,
+} from '../../components/ui/Field';
 import { EmptyState, Notice, toast } from '../../components/ui/Feedback';
 import { DemoNotice } from '../../components/ui/DemoNotice';
 import { OtpForm } from '../auth/OtpForm';
@@ -172,6 +180,21 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
     ? state.requirements.filter((r) => r.client?.phone === client.phone)
     : [];
   const [step, setStep] = useState(1);
+  const stepsRef = useRef<HTMLDivElement>(null);
+  const firstStep = useRef(true);
+  // Each new step starts at its heading, not wherever the last step's button was.
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    const top = stepsRef.current?.getBoundingClientRect().top;
+    if (top !== undefined)
+      window.scrollTo({
+        top: window.scrollY + top - 100,
+        behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+  }, [step]);
   const [reuse, setReuse] = useState(
     ownRequirements.some((r) => r.id === params.get('requirement'))
       ? params.get('requirement')!
@@ -314,6 +337,7 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
           ) : (
             <div className="panel">
               <div
+                ref={stepsRef}
                 className="flow-steps"
                 style={
                   {
@@ -480,6 +504,8 @@ function EnquiryFormContent({ providerId }: { providerId: string }) {
                   </p>
                   <Input
                     label="Your name"
+                    pattern={NAME_PATTERN}
+                    title={NAME_TITLE}
                     minLength={2}
                     maxLength={80}
                     required

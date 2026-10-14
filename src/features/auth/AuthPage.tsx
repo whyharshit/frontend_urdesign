@@ -105,7 +105,9 @@ export function AuthPage({ mode }: { mode: 'join' | 'login' | 'reset' }) {
                 e.preventDefault();
                 if (mode === 'login') {
                   dispatch({ type: 'login', role: 'professional' });
-                  navigate('/dashboard');
+                  // Return to the workspace page that sent them here; never an outside URL.
+                  const next = params.get('next') || '';
+                  navigate(/^\/dashboard(\/|$)/.test(next) ? next : '/dashboard');
                 } else setStep('otp');
               }}
             >

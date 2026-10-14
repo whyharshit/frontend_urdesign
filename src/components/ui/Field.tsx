@@ -12,6 +12,44 @@ import { CITIES as CITY_OPTIONS } from '../../config/catalog';
 type Shared = { label: string; hint?: string; error?: string };
 type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
+/** Labels phrased as questions or instructions need their own wording, not "Enter <label>". */
+const REQUIRED_MESSAGES: Record<string, string> = {
+  'Give your project a name': 'Give your project a name',
+  'What would you like to create?': 'Describe what you’d like to create',
+  'Based in': 'Enter the city you’re based in',
+  'About the project': 'Tell us about the project',
+  'About your practice': 'Tell clients about your practice',
+  'A little about this service': 'Describe this service',
+  'Your approach & scope': 'Describe your approach and scope',
+  'Service required': 'Choose the service you need',
+  'How would you like to show pricing?': 'Choose how to show pricing',
+  'Indicative design fee (₹)': 'Enter your indicative design fee',
+  'Studio / firm name': 'Enter your studio or firm name',
+  'Your name': 'Enter your name',
+  'Full name': 'Enter your full name',
+  'Project city': 'Enter the project city',
+  'Add a city': 'Enter a city',
+  'Reason for this action': 'Give a reason for this action',
+  'Rejection reason': 'Give a reason for rejecting',
+  'What’s the problem?': 'Choose a reason',
+};
+
+/** "Enter …" / "Choose …" for noun labels; a neutral prompt for anything else. */
+export function requiredMessage(label: string, select = false) {
+  const clean = label.replace(/\s*\(optional\)\s*$/i, '').trim();
+  if (REQUIRED_MESSAGES[clean]) return REQUIRED_MESSAGES[clean];
+  if (/\?$/.test(clean)) return select ? 'Choose an option' : 'Fill in this field';
+  const name = clean.replace(/\s*\([^)]*\)/g, '').toLowerCase();
+  return select ? `Choose ${name}` : `Enter ${name}`;
+}
+
+/** People's names: letters (any script), spaces, apostrophes, dots and hyphens. */
+export const NAME_PATTERN = String.raw`[\p{L}\p{M}][\p{L}\p{M} .'’\-]*`;
+export const NAME_TITLE = 'Use letters only. Spaces, apostrophes, dots and hyphens are fine.';
+
+/** Requires a dot-separated domain, so "a@b" is refused (the browser's own check allows it). */
+export const EMAIL_PATTERN = '[^@\\s]+@[^@\\s]+\\.[A-Za-z]{2,}';
+
 /** Plain-language reason a field failed, shown in red under it. */
 export function validationMessage(control: Control, label: string) {
   const v = control.validity;
@@ -19,12 +57,12 @@ export function validationMessage(control: Control, label: string) {
   if (v.customError) return control.validationMessage;
   if (control.type === 'tel' && (v.valueMissing || v.patternMismatch || v.tooShort))
     return 'Enter a 10-digit mobile number';
-  if (control.type === 'email' && (v.valueMissing || v.typeMismatch)) return 'Enter a valid email';
+  if (control.type === 'email' && (v.valueMissing || v.typeMismatch || v.patternMismatch))
+    return 'Enter a valid email, e.g. name@example.com';
   if (control.type === 'password' && (v.valueMissing || v.tooShort))
     return 'Password needs 8+ characters';
   if (control.type === 'checkbox' && v.valueMissing) return 'Tick this box to continue';
-  if (v.valueMissing)
-    return control instanceof HTMLSelectElement ? `Choose ${name}` : `Enter ${name}`;
+  if (v.valueMissing) return requiredMessage(label, control instanceof HTMLSelectElement);
   if (v.tooShort && 'minLength' in control) return `Write at least ${control.minLength} characters`;
   if (v.rangeUnderflow && 'min' in control) return `Enter ${control.min} or more`;
   if (v.rangeOverflow && 'max' in control) return `Enter ${control.max} or less`;
@@ -52,7 +90,7 @@ function useValidation(
     const length = value.trim().length;
     control.setCustomValidity(
       required && value.length > 0 && length === 0
-        ? `Enter ${label.toLowerCase()}`
+        ? requiredMessage(label)
         : minLength && length > 0 && length < minLength
           ? `Write at least ${minLength} characters (${length} so far)`
           : '',
@@ -124,6 +162,7 @@ export function Input({
           onChange?.(e);
           clear();
         }}
+        pattern={props.type === 'email' ? EMAIL_PATTERN : undefined}
         {...props}
       />
       <Help id={id} hint={hint} error={error} />

@@ -10,6 +10,16 @@ async function signInClient(page: Page) {
   await expect(page.getByRole('heading', { name: 'My enquiries', level: 1 })).toBeVisible();
 }
 
+/** The workspace is locked: logging in returns to the page that was asked for. */
+async function signInProfessional(page: Page, path = '/dashboard') {
+  await page.goto(path);
+  await expect(page).toHaveURL(/\/login\?next=/);
+  await page.getByLabel('Mobile number').fill('9812345670');
+  await page.getByLabel('Password').fill('a-strong-pass');
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await expect(page).toHaveURL((url) => url.pathname === path);
+}
+
 async function signInAdmin(page: Page, path = '/admin') {
   await page.goto(path);
   await expect(page).toHaveURL(/\/admin\/login/);
@@ -38,7 +48,7 @@ test('discovery is server-rendered and searchable without JavaScript', async ({ 
 test('proposal debit, client decision and persistence form a connected journey', async ({
   page,
 }) => {
-  await page.goto('/dashboard/enquiries/e1/proposal');
+  await signInProfessional(page, '/dashboard/enquiries/e1/proposal');
   await page
     .getByLabel('Your approach & scope')
     .fill(
@@ -66,7 +76,7 @@ test('proposal debit, client decision and persistence form a connected journey',
 });
 
 test('pack submission remains pending until admin verifies it', async ({ page }) => {
-  await page.goto('/dashboard/connects/payment/300');
+  await signInProfessional(page, '/dashboard/connects/payment/300');
   await page.getByLabel('Sample transaction reference').fill('DEMOTEST12345');
   await page.getByRole('button', { name: 'Simulate payment submission' }).click();
   await expect(page.getByText('Your submission is with the team.')).toBeVisible();
@@ -105,7 +115,7 @@ test('project-first enquiry flow verifies a sample identity and sends', async ({
 });
 
 test('profile autosave, services and project upload update discovery', async ({ page }) => {
-  await page.goto('/dashboard/profile');
+  await signInProfessional(page, '/dashboard/profile');
   await page.getByLabel('Studio / firm name').fill('Aangan Test Practice');
   await page.goto('/dashboard/services');
   await page.getByRole('button', { name: 'Add service', exact: true }).click();
@@ -144,6 +154,7 @@ test('core routes load with no console errors, broken images or horizontal overf
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
+  await signInProfessional(page);
   await signInAdmin(page);
   const paths = [
     '/',
@@ -262,4 +273,56 @@ test('admin is locked and login is for professionals only', async ({ page }) => 
   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toContainText(
     'My enquiries',
   );
+});
+
+test('QA fixes: locked workspace, city 404s, crawler files and mobile login', async ({
+  page,
+  request,
+}) => {
+  await page.goto('/dashboard/referrals');
+  await expect(page).toHaveURL(/\/login\?next=%2Fdashboard%2Freferrals/);
+  expect((await request.get('/architects/xyzcity')).status()).toBe(404);
+  await page.goto('/architects/xyzcity');
+  await expect(page.getByText('We don’t cover this city yet.')).toBeVisible();
+  const robots = await request.get('/robots.txt');
+  expect(robots.status()).toBe(200);
+  expect(await robots.text()).toContain('Disallow: /dashboard');
+  const sitemap = await request.get('/sitemap.xml');
+  expect(sitemap.status()).toBe(200);
+  expect(await sitemap.text()).toContain('/p/aangan-studio-ahmedabad</loc>');
+  const profile = await (await request.get('/p/aangan-studio-ahmedabad')).text();
+  expect(profile).toContain('rel="canonical"');
+  expect(profile).toContain('property="og:image"');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('link', { name: 'Professional log in' }),
+  ).toBeVisible();
+});
+
+test('QA fixes: enquiry form wording, negative size and short emails', async ({ page }) => {
+  await page.goto('/enquiry/aangan-studio-ahmedabad');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.locator('.error-text', { hasText: 'Give your project a name' })).toBeVisible();
+  await expect(page.getByText('Describe what you’d like to create')).toBeVisible();
+  await expect(page.getByText(/^Enter give/)).toHaveCount(0);
+  await page.getByLabel('Give your project a name').fill('Courtyard home');
+  await page
+    .getByLabel('What would you like to create?')
+    .fill('A calm family home around a courtyard with plenty of light.');
+  await page.getByLabel('Project size (optional)').fill('-500');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByText('Enter 1 or more')).toBeVisible();
+  await page.getByLabel('Project size (optional)').fill('1850');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByLabel('Your name').fill('<script>alert(1)</script>');
+  await page.getByRole('textbox', { name: /^Email/ }).fill('a@b');
+  await page.getByLabel('Mobile number').fill('9876543210');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Continue to verification' }).click();
+  await expect(page.getByText(/Use letters only/)).toBeVisible();
+  await expect(page.getByText('Enter a valid email, e.g. name@example.com')).toBeVisible();
 });

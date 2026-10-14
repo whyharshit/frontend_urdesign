@@ -19,7 +19,7 @@ import { Brand } from './Brand';
 import { AccountMenu } from './AccountMenu';
 import { useDemo } from '../hooks/useDemo';
 import { Notice, Toaster } from '../components/ui/Feedback';
-import { ADMIN_EMAIL, IS_STAGING, OWN_PROVIDER_ID } from '../config/catalog';
+import { ADMIN_EMAIL, IS_STAGING } from '../config/catalog';
 const proLinks = [
   { to: '/dashboard', label: 'Overview', Icon: LayoutDashboard, end: true },
   { to: '/dashboard/profile', label: 'My profile', Icon: UserRound },
@@ -39,11 +39,17 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
   const { state, storageError, ready, dispatch } = useDemo();
   const location = useLocation();
   const navigate = useNavigate();
-  // Admin is never open to anyone with the URL: wait for the saved session, then require a login.
-  if (admin && !ready) return <div className="workspace-loading" aria-busy="true" />;
-  if (admin && !state.session.admin)
-    return <Navigate to={`/admin/login?next=${encodeURIComponent(location.pathname)}`} replace />;
-  const own = state.providers.find((p) => p.id === OWN_PROVIDER_ID)!;
+  // Neither workspace is open to anyone with the URL: wait for the saved session, then require
+  // the matching login. The server always renders the empty shell, so nothing private leaks.
+  if (!ready) return <div className="workspace-loading" aria-busy="true" />;
+  if (admin ? !state.session.admin : !state.session.professional)
+    return (
+      <Navigate
+        to={`${admin ? '/admin/login' : '/login'}?next=${encodeURIComponent(location.pathname)}`}
+        replace
+      />
+    );
+  const own = state.providers.find((p) => p.id === state.ownId)!;
   const openReports = state.reports.length;
   const logout = () => {
     dispatch({ type: 'logout', role: admin ? 'admin' : 'professional' });
@@ -66,7 +72,7 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
                 <span className="nav-count">
                   {
                     state.enquiries.filter(
-                      (e) => e.providerId === OWN_PROVIDER_ID && e.status === 'sent',
+                      (e) => e.providerId === state.ownId && e.status === 'sent',
                     ).length
                   }
                 </span>
@@ -107,7 +113,7 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
             )}
             <AccountMenu
               name={admin ? 'Administrator' : own.studio || own.name || 'Your practice'}
-              detail={admin ? ADMIN_EMAIL : state.contacts[OWN_PROVIDER_ID]?.email}
+              detail={admin ? ADMIN_EMAIL : state.contacts[state.ownId]?.email}
               avatar={
                 !admin && own.photo ? (
                   <img className="mini-avatar" src={own.photo} alt="" />

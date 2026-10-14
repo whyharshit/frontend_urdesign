@@ -3,10 +3,18 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowUpRight, ArrowUp, ArrowDown, Trash2, Plus, Send } from 'lucide-react';
 import { useDemo } from '../../hooks/useDemo';
 import { useLocalDraft } from '../../hooks/useLocalDraft';
-import { OWN_PROVIDER_ID, CONTACT_WARNING, TIMELINE_UNITS } from '../../config/catalog';
+import { CONTACT_WARNING, TIMELINE_UNITS } from '../../config/catalog';
 import { DELIVERABLES } from '../../config/deliverables';
 import { bandForFee, hasContactDetails } from '../../lib/rules';
-import { uid, dateLabel, money, plural, joinMeasure } from '../../lib/format';
+import {
+  uid,
+  dateLabel,
+  money,
+  plural,
+  joinMeasure,
+  connectValue,
+  connectRate,
+} from '../../lib/format';
 import { newestFirst } from './DashboardPage';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button, ButtonLink } from '../../components/ui/Button';
@@ -29,7 +37,7 @@ export function EnquiriesPage() {
   const enquiries = state.enquiries
     .filter(
       (e) =>
-        e.providerId === OWN_PROVIDER_ID &&
+        e.providerId === state.ownId &&
         (filter === 'all' ||
           (filter === 'new'
             ? ['sent', 'viewed'].includes(e.status)
@@ -94,9 +102,7 @@ export function EnquiryDetail() {
   const { enquiryId } = useParams();
   const { state, dispatch, ready } = useDemo();
   const [decline, setDecline] = useState(false);
-  const enquiry = state.enquiries.find(
-    (e) => e.id === enquiryId && e.providerId === OWN_PROVIDER_ID,
-  );
+  const enquiry = state.enquiries.find((e) => e.id === enquiryId && e.providerId === state.ownId);
   const requirement = state.requirements.find((r) => r.id === enquiry?.requirementId);
   const proposal = state.proposals.find((p) => p.enquiryId === enquiryId);
   useEffect(() => {
@@ -113,7 +119,7 @@ export function EnquiryDetail() {
     );
   const canReply =
     ['sent', 'viewed'].includes(enquiry.status) &&
-    state.providers.find((p) => p.id === OWN_PROVIDER_ID)?.status !== 'suspended';
+    state.providers.find((p) => p.id === state.ownId)?.status !== 'suspended';
   return (
     <div className="stack">
       <PageHeading
@@ -227,14 +233,12 @@ export function EnquiryDetail() {
 export function ProposalEditor() {
   const { enquiryId } = useParams();
   const { state, ready } = useDemo();
-  const enquiry = state.enquiries.find(
-    (e) => e.id === enquiryId && e.providerId === OWN_PROVIDER_ID,
-  );
+  const enquiry = state.enquiries.find((e) => e.id === enquiryId && e.providerId === state.ownId);
   if (!ready) return <Notice>Loading your proposal draft…</Notice>;
   if (
     !enquiry ||
     !['sent', 'viewed'].includes(enquiry.status) ||
-    state.providers.find((p) => p.id === OWN_PROVIDER_ID)?.status === 'suspended'
+    state.providers.find((p) => p.id === state.ownId)?.status === 'suspended'
   )
     return (
       <EmptyState
@@ -449,8 +453,8 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
               <strong>{band.cost} connects</strong>
             </div>
             <div>
-              <span>Illustration at ₹1/connect</span>
-              <strong>{money(band.cost)}</strong>
+              <span>Value at pack prices</span>
+              <strong>{connectValue(band.cost)}</strong>
             </div>
             <div>
               <span>Current balance</span>
@@ -458,10 +462,10 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
             </div>
           </div>
           <p className="small">
-            The rupee illustration uses ₹1 per connect; your purchase rate depends on the pack. If
-            the client declines, <strong>{Math.ceil(band.cost / 2)} connects</strong> return. If
-            they never reply by the validity date, all <strong>{band.cost}</strong> return.
-            Automated expiry needs the backend.
+            Connects cost {connectRate()} each, depending on the pack you buy. If the client
+            declines, <strong>{Math.ceil(band.cost / 2)} connects</strong> return. If they never
+            reply by the validity date, all <strong>{band.cost}</strong> return. Automated expiry
+            needs the backend.
           </p>
           {shortfall > 0 && (
             <>

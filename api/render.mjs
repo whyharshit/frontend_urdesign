@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { render } from '../dist/server/entry-server.js';
+import { render, robots, sitemap } from '../dist/server/entry-server.js';
 
 // Vercel entry: same SSR as server/index.mjs, for every non-static route.
 const templatePath = path.join(process.cwd(), 'dist/template.html');
@@ -13,6 +13,14 @@ export default async function handler(req, res) {
     const url = new URL(req.url, 'http://localhost');
     const route = url.searchParams.get('__path') ?? '/';
     url.searchParams.delete('__path');
+    if (route === '/robots.txt' || route === '/sitemap.xml') {
+      const xml = route === '/sitemap.xml';
+      return res
+        .status(200)
+        .setHeader('Content-Type', xml ? 'application/xml' : 'text/plain')
+        .setHeader('Cache-Control', 'public, max-age=3600')
+        .end(xml ? sitemap() : robots());
+    }
     const rendered = render(route + url.search);
     res
       .status(rendered.status)

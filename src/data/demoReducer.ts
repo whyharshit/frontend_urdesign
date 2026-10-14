@@ -8,8 +8,8 @@ import type {
   Report,
 } from '../types/domain';
 import { canContact, publishChecks } from '../lib/rules';
-import { OWN_PROVIDER_ID, FEE_BANDS, CONNECT_PACKS } from '../config/catalog';
-import { blankProfessional } from './seed';
+import { FEE_BANDS, CONNECT_PACKS } from '../config/catalog';
+import { blankProfessional, seedProviders } from './seed';
 import { initialsOf } from '../lib/format';
 
 export type DemoAction =
@@ -51,7 +51,7 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
       return {
         ...state,
         enquiries: state.enquiries.map((e) =>
-          e.id === action.enquiryId && e.providerId === OWN_PROVIDER_ID && e.status === 'sent'
+          e.id === action.enquiryId && e.providerId === state.ownId && e.status === 'sent'
             ? { ...e, status: 'viewed' }
             : e,
         ),
@@ -67,7 +67,7 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
             )
           : [];
       const refunded = affected
-        .filter((e) => e.providerId === OWN_PROVIDER_ID)
+        .filter((e) => e.providerId === state.ownId)
         .flatMap((e) => state.proposals.filter((p) => p.enquiryId === e.id));
       return {
         ...state,
@@ -129,8 +129,8 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
       const cost = FEE_BANDS.find((b) => b.id === action.proposal.band)?.cost;
       if (
         !enquiry ||
-        enquiry.providerId !== OWN_PROVIDER_ID ||
-        state.providers.find((p) => p.id === OWN_PROVIDER_ID)?.status === 'suspended' ||
+        enquiry.providerId !== state.ownId ||
+        state.providers.find((p) => p.id === state.ownId)?.status === 'suspended' ||
         !['sent', 'viewed'].includes(enquiry.status) ||
         !cost ||
         state.balance < cost ||
@@ -172,7 +172,7 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
             ? [enquiry]
             : [];
       const refunds = declined
-        .filter((e) => e.providerId === OWN_PROVIDER_ID)
+        .filter((e) => e.providerId === state.ownId)
         .map((e) => ({
           enquiryId: e.id,
           amount: Math.ceil((state.proposals.find((p) => p.enquiryId === e.id)?.cost ?? 0) / 2),
@@ -211,7 +211,7 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
       );
       // A professional who already paid for a proposal gets it back in full when the client withdraws.
       const refunds = closing
-        .filter((e) => e.providerId === OWN_PROVIDER_ID && e.status === 'proposal_sent')
+        .filter((e) => e.providerId === state.ownId && e.status === 'proposal_sent')
         .flatMap((e) => state.proposals.filter((p) => p.enquiryId === e.id));
       return {
         ...state,
@@ -234,23 +234,20 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
       };
     }
     case 'signup': {
-      // A new number is a new practice: start from an empty draft, never the sample studio.
-      const ownEnquiries = new Set(
-        state.enquiries.filter((e) => e.providerId === OWN_PROVIDER_ID).map((e) => e.id),
-      );
+      // A new number is a new practice: an empty draft of its own. The sample studios stay
+      // published for everyone, so search counts and profile pages match the server render.
+      const ownId = `own-${Date.parse(action.date) || 0}`;
+      const previous = seedProviders.some((p) => p.id === state.ownId) ? null : state.ownId;
       return {
         ...state,
-        providers: state.providers.map((p) =>
-          p.id === OWN_PROVIDER_ID ? blankProfessional(OWN_PROVIDER_ID) : p,
-        ),
-        enquiries: state.enquiries.filter((e) => !ownEnquiries.has(e.id)),
-        proposals: state.proposals.filter((p) => !ownEnquiries.has(p.enquiryId)),
-        payments: state.payments.filter((p) => p.providerId !== OWN_PROVIDER_ID),
+        ownId,
+        providers: [...state.providers.filter((p) => p.id !== previous), blankProfessional(ownId)],
+        payments: state.payments.filter((p) => p.providerId !== previous),
         contacts: {
           ...state.contacts,
-          [OWN_PROVIDER_ID]: { phone: action.phone, email: action.email },
+          [ownId]: { phone: action.phone, email: action.email },
         },
-        views: { ...state.views, [OWN_PROVIDER_ID]: [] },
+        views: { ...state.views, [ownId]: [] },
         balance: 200,
         ledger: [
           {
@@ -304,7 +301,7 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
         ) ||
         action.payment.status !== 'pending' ||
         !/^[a-z0-9]{6,40}$/i.test(action.payment.reference) ||
-        action.payment.providerId !== OWN_PROVIDER_ID
+        action.payment.providerId !== state.ownId
       )
         return state;
       if (
@@ -318,7 +315,7 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
       const payment = state.payments.find((p) => p.id === action.id);
       if (!payment || payment.status !== 'pending' || (!action.approve && !action.reason.trim()))
         return state;
-      const credit = action.approve && payment.providerId === OWN_PROVIDER_ID ? payment.pack : 0;
+      const credit = action.approve && payment.providerId === state.ownId ? payment.pack : 0;
       return {
         ...state,
         payments: state.payments.map((p) =>

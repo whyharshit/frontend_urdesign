@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Coins, ArrowUpRight, Copy, Gift, CreditCard, Check } from 'lucide-react';
 import { useDemo } from '../../hooks/useDemo';
-import { CONNECT_PACKS, OWN_PROVIDER_ID } from '../../config/catalog';
-import { money, dateLabel, uid } from '../../lib/format';
+import { CONNECT_PACKS } from '../../config/catalog';
+import { money, dateLabel, uid, connectValue, connectRate } from '../../lib/format';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Field';
@@ -69,7 +69,8 @@ export function WalletPage() {
             <span>connects</span>
           </strong>
           <p>
-            {money(state.balance)} illustrative value at ₹1/connect. Purchase rates vary by pack.
+            Worth {connectValue(state.balance)} at pack prices ({connectRate()} per connect,
+            depending on the pack).
           </p>
         </div>
         <ButtonLink variant="light" to="/dashboard/connects/buy">
@@ -273,7 +274,7 @@ export function PaymentPage() {
                 type: 'payment',
                 payment: {
                   id,
-                  providerId: OWN_PROVIDER_ID,
+                  providerId: state.ownId,
                   pack: pack.connects,
                   amount: pack.price,
                   reference: reference.trim(),

@@ -202,12 +202,33 @@ describe('feedback round: accounts, closing, accepting and formatting', () => {
       email: 'new@studio.in',
       date,
     });
-    const own = state.providers.find((p) => p.id === 'p1')!;
+    const own = state.providers.find((p) => p.id === state.ownId)!;
+    expect(state.ownId).not.toBe('p1');
     expect(own.name).toBe('');
     expect(own.status).toBe('draft');
-    expect(state.enquiries.some((e) => e.providerId === 'p1')).toBe(false);
+    expect(state.enquiries.some((e) => e.providerId === state.ownId)).toBe(false);
     expect(state.balance).toBe(200);
     expect(state.session.professional).toBe(true);
+    // The sample studio stays published, so it isn't hidden from everyone else (QA H1).
+    expect(state.providers.find((p) => p.id === 'p1')?.status).toBe('published');
+  });
+  it('a second signup replaces the first draft, not a sample studio', () => {
+    let state = demoReducer(createSeedState(), {
+      type: 'signup',
+      phone: '9000000001',
+      email: 'a@studio.in',
+      date,
+    });
+    const first = state.ownId;
+    state = demoReducer(state, {
+      type: 'signup',
+      phone: '9000000002',
+      email: 'b@studio.in',
+      date: '2026-10-15T10:00:00.000Z',
+    });
+    expect(state.providers.some((p) => p.id === first)).toBe(false);
+    expect(state.providers.filter((p) => p.status === 'draft')).toHaveLength(1);
+    expect(state.providers.length).toBe(createSeedState().providers.length + 1);
   });
   it('accepting one proposal declines the others on the same project', () => {
     let state = demoReducer(createSeedState(), { type: 'proposal', proposal, date });

@@ -53,7 +53,8 @@
   font-size: 12px;
   padding: 9px 15px;
 }
-.mobile-menu {
+.mobile-menu,
+.main-nav .nav-mobile-only {
   display: none;
 }
 .hero {
@@ -1272,6 +1273,16 @@
     display: grid;
     gap: 5px;
     font-size: 14px;
+  }
+  .main-nav .nav-mobile-only {
+    display: inline-flex;
+  }
+  .main-nav .nav-mobile-first {
+    margin-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+  .header-actions .login-link {
+    display: none;
   }
   .main-nav a {
     padding: 12px 0;

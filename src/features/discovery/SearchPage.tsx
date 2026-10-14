@@ -28,6 +28,13 @@ export function SearchPage() {
   };
   const [query, setQuery] = useState(filters.q);
   useEffect(() => setQuery(filters.q), [filters.q]);
+  // Live name search: apply what's typed after a short pause, like the dropdown filters.
+  useEffect(() => {
+    const typed = query.trim();
+    if (typed === filters.q) return;
+    const timer = setTimeout(() => setFilter('q', typed), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
   const [refine, setRefine] = useState(!!(filters.type || filters.service || filters.experience));
   const results = filterProfessionals(state.providers, filters);
   const published = state.providers.filter((p) => p.status === 'published');
@@ -36,6 +43,17 @@ export function SearchPage() {
     published.some((p) => [p.city, ...(p.workCities || [])].some((w) => slugify(w) === slugify(c))),
   );
   const city = CITIES.find((c) => slugify(c) === slugify(filters.city));
+  if (pathCity && !city)
+    return (
+      <div className="container section">
+        <EmptyState
+          title="We don’t cover this city yet."
+          description={`There’s no city called “${pathCity.replaceAll('-', ' ')}” on UrDesigner. Browse professionals across India instead.`}
+          to={withRequirement('/architects')}
+          action="See all professionals"
+        />
+      </div>
+    );
   const setFilter = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     value ? next.set(key, value) : next.delete(key);

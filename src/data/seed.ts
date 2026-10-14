@@ -1,19 +1,18 @@
 import type { DemoState, Professional, Project } from '../types/domain';
+import { OWN_PROVIDER_ID } from '../config/catalog';
 const project = (
   id: string,
   title: string,
   image: string,
-  type = 'Residential',
-  location = 'Ahmedabad',
+  { type = 'Residential', location = 'Ahmedabad', year = 2025, area = '', description = '' },
 ): Project => ({
   id,
   title,
   type,
   location,
-  year: 2025,
-  area: '2,400 sq ft',
-  description:
-    'An exploration of natural light, honest materials and spaces that feel deeply personal. Warm textures and thoughtful details bring a quiet sense of belonging to everyday living.',
+  year,
+  area,
+  description,
   images: [`/images/${image}.jpg`],
   status: 'Completed',
 });
@@ -54,9 +53,24 @@ export const seedProviders: Professional[] = [
       },
     ],
     projects: [
-      project('pr1', 'The quiet residence', 'living'),
-      project('pr2', 'A home, naturally', 'dining'),
-      project('pr3', 'Light & lines', 'architecture'),
+      project('pr1', 'The quiet residence', 'living', {
+        year: 2025,
+        area: '3,200 sq ft',
+        description:
+          'A family home organised around one generous living room. Lime-plastered walls, teak and a single skylight keep it calm through the day.',
+      }),
+      project('pr2', 'A home, naturally', 'dining', {
+        year: 2024,
+        area: '1,850 sq ft',
+        description:
+          'A compact apartment opened up around the dining table, with built-in storage that keeps everyday clutter out of sight.',
+      }),
+      project('pr3', 'Light & lines', 'architecture', {
+        year: 2023,
+        area: '4,600 sq ft',
+        description:
+          'A two-storey house with deep overhangs and a shaded courtyard that pulls breeze through every room.',
+      }),
     ],
     languages: ['English', 'Hindi', 'Gujarati'],
     status: 'published',
@@ -94,8 +108,18 @@ export const seedProviders: Professional[] = [
       },
     ],
     projects: [
-      project('pr4', 'Soft edges, warm living', 'warm'),
-      project('pr5', 'A place to gather', 'dining'),
+      project('pr4', 'Soft edges, warm living', 'warm', {
+        year: 2025,
+        area: '1,450 sq ft',
+        description:
+          'Rounded joinery, warm oak and layered lighting turn a rented flat into a home that feels settled.',
+      }),
+      project('pr5', 'A place to gather', 'bedroom', {
+        year: 2023,
+        area: '2,100 sq ft',
+        description:
+          'A guest suite and family room designed for long visits: quiet corners, good light and room for everyone.',
+      }),
     ],
     languages: ['English', 'Hindi'],
     status: 'published',
@@ -131,8 +155,20 @@ export const seedProviders: Professional[] = [
       },
     ],
     projects: [
-      project('pr6', 'Courtyard house', 'architecture', 'Residential', 'Pune'),
-      project('pr7', 'Between the trees', 'house', 'Residential', 'Pune'),
+      project('pr6', 'Courtyard house', 'architecture', {
+        location: 'Pune',
+        year: 2024,
+        area: '5,200 sq ft',
+        description:
+          'Four wings around a planted courtyard, built in exposed brick with a roof that collects monsoon rain.',
+      }),
+      project('pr7', 'Between the trees', 'house', {
+        location: 'Pune',
+        year: 2022,
+        area: '3,800 sq ft',
+        description:
+          'A weekend home placed carefully between existing mango trees, so not one of them had to be cut.',
+      }),
     ],
     languages: ['English', 'Hindi', 'Marathi'],
     status: 'published',
@@ -168,7 +204,15 @@ export const seedProviders: Professional[] = [
         price: 20000,
       },
     ],
-    projects: [project('pr8', 'Room to breathe', 'bedroom', 'Residential', 'Mumbai')],
+    projects: [
+      project('pr8', 'Room to breathe', 'bedroom', {
+        location: 'Mumbai',
+        year: 2025,
+        area: '980 sq ft',
+        description:
+          'A one-bedroom Mumbai flat reworked for light and air, with sliding screens instead of fixed walls.',
+      }),
+    ],
     languages: ['English', 'Hindi'],
     status: 'published',
     mobileVerified: true,
@@ -202,7 +246,15 @@ export const seedProviders: Professional[] = [
         priceType: 'contact_for_pricing',
       },
     ],
-    projects: [project('pr9', 'A slower kind of home', 'house', 'Residential', 'Bengaluru')],
+    projects: [
+      project('pr9', 'A slower kind of home', 'dining', {
+        location: 'Bengaluru',
+        year: 2024,
+        area: '2,750 sq ft',
+        description:
+          'A retired couple’s home with a kitchen garden, a reading nook and a dining table at its centre.',
+      }),
+    ],
     languages: ['English', 'Hindi', 'Kannada'],
     status: 'published',
     mobileVerified: true,
@@ -230,7 +282,16 @@ export const seedProviders: Professional[] = [
         price: 25000,
       },
     ],
-    projects: [project('pr10', 'A green pause', 'house', 'Landscape', 'Vadodara')],
+    projects: [
+      project('pr10', 'A green pause', 'house', {
+        type: 'Landscape',
+        location: 'Vadodara',
+        year: 2024,
+        area: '26,000 sq ft',
+        description:
+          'Native planting, a stepped water channel and shaded seating around an existing family home.',
+      }),
+    ],
     languages: ['English', 'Gujarati'],
     status: 'published',
     mobileVerified: true,
@@ -282,7 +343,8 @@ function recentViews(count: number) {
 
 export function createSeedState(): DemoState {
   return {
-    version: 2,
+    version: 3,
+    ownId: OWN_PROVIDER_ID,
     session: { client: null, professional: false, admin: false },
     saved: [],
     reports: [],

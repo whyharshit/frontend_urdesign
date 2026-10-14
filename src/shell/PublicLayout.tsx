@@ -80,6 +80,22 @@ export function PublicLayout() {
                 <Bookmark size={14} /> Saved ({saved})
               </NavLink>
             )}
+            {/* The header buttons don't fit on phones, so the menu carries them. */}
+            {!client &&
+              (professional ? (
+                <Link className="nav-mobile-only nav-mobile-first" to="/dashboard">
+                  Your workspace <ArrowUpRight size={14} />
+                </Link>
+              ) : (
+                <>
+                  <Link className="nav-mobile-only nav-mobile-first" to="/login">
+                    Professional log in
+                  </Link>
+                  <Link className="nav-mobile-only" to="/join">
+                    Join as a professional <ArrowUpRight size={14} />
+                  </Link>
+                </>
+              ))}
           </nav>
           <div className="header-actions">
             {client ? (

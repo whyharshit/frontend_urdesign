@@ -10,7 +10,14 @@ import { Avatar } from '../../components/professionals/ProfessionalCard';
 import { ProfileContent } from '../../components/professionals/ProfileContent';
 import { PublishChecklist } from '../../components/professionals/PublishChecklist';
 import { PageHeading } from '../../components/ui/PageHeading';
-import { CityInput, Input, Select, Textarea } from '../../components/ui/Field';
+import {
+  CityInput,
+  Input,
+  NAME_PATTERN,
+  NAME_TITLE,
+  Select,
+  Textarea,
+} from '../../components/ui/Field';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { Notice, StatusBadge, toast } from '../../components/ui/Feedback';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -91,6 +98,8 @@ export function ProfileFields() {
         <Input
           id="name"
           label="Full name"
+          pattern={NAME_PATTERN}
+          title={NAME_TITLE}
           value={p.name}
           minLength={2}
           maxLength={80}

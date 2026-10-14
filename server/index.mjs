@@ -30,9 +30,11 @@ app.use(async (req, res) => {
       'utf8',
     );
     if (vite) template = await vite.transformIndexHtml(req.originalUrl, template);
-    const { render } = vite
+    const { render, robots, sitemap } = vite
       ? await vite.ssrLoadModule('/src/entry-server.tsx')
       : await import('../dist/server/entry-server.js');
+    if (req.path === '/robots.txt') return res.type('text/plain').send(robots());
+    if (req.path === '/sitemap.xml') return res.type('application/xml').send(sitemap());
     const rendered = render(req.originalUrl);
     res
       .status(rendered.status)

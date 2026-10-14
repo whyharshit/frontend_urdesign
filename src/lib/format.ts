@@ -1,4 +1,14 @@
+import { CONNECT_RATE } from '../config/catalog';
+
 export const money = (amount: number) => `₹${amount.toLocaleString('en-IN')}`;
+/** Rupee value of connects at pack prices, e.g. "₹150–₹236". */
+export const connectValue = (connects: number) => {
+  const low = Math.round(connects * CONNECT_RATE.low);
+  const high = Math.round(connects * CONNECT_RATE.high);
+  return low === high ? money(low) : `${money(low)}–${money(high)}`;
+};
+/** Per-connect price range, e.g. "₹0.75–₹1.18". */
+export const connectRate = () => `₹${CONNECT_RATE.low.toFixed(2)}–₹${CONNECT_RATE.high.toFixed(2)}`;
 export const slugify = (value: string) =>
   value
     .toLowerCase()
@@ -35,7 +45,8 @@ export const areaLabel = (value: string) =>
   /^[\d,.\s]+$/.test(value.trim()) && value.trim() ? `${value.trim()} sq ft` : value;
 export const splitMeasure = (value: string, units: readonly string[], fallback: string) => {
   const unit = units.find((u) => value.trim().endsWith(u)) || fallback;
-  return { amount: value.replace(unit, '').replace(/[^\d.]/g, ''), unit };
+  // Keep a minus sign so the field's min={1} check rejects it instead of it being silently dropped.
+  return { amount: value.replace(unit, '').replace(/[^\d.-]/g, ''), unit };
 };
 export const joinMeasure = (amount: string, unit: string) => {
   const number = Number(amount);

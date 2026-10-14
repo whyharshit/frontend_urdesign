@@ -130,7 +130,9 @@ export interface Payment {
   reason?: string;
 }
 export interface DemoState {
-  version: 2;
+  version: 3;
+  /** The signed-in professional's own practice: the sample studio until someone signs up. */
+  ownId: string;
   providers: Professional[];
   requirements: Requirement[];
   enquiries: Enquiry[];
