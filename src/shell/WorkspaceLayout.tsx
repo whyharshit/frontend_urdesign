@@ -13,11 +13,13 @@ import {
   ClipboardList,
   Flag,
   LogOut,
+  CircleUserRound,
 } from 'lucide-react';
 import { Brand } from './Brand';
+import { AccountMenu } from './AccountMenu';
 import { useDemo } from '../hooks/useDemo';
 import { Notice, Toaster } from '../components/ui/Feedback';
-import { IS_STAGING, OWN_PROVIDER_ID } from '../config/catalog';
+import { ADMIN_EMAIL, IS_STAGING, OWN_PROVIDER_ID } from '../config/catalog';
 const proLinks = [
   { to: '/dashboard', label: 'Overview', Icon: LayoutDashboard, end: true },
   { to: '/dashboard/profile', label: 'My profile', Icon: UserRound },
@@ -43,6 +45,10 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
     return <Navigate to={`/admin/login?next=${encodeURIComponent(location.pathname)}`} replace />;
   const own = state.providers.find((p) => p.id === OWN_PROVIDER_ID)!;
   const openReports = state.reports.length;
+  const logout = () => {
+    dispatch({ type: 'logout', role: admin ? 'admin' : 'professional' });
+    navigate(admin ? '/admin/login' : '/');
+  };
   return (
     <div className="workspace">
       <a className="skip-link" href="#main">
@@ -84,14 +90,7 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
           <Link to="/architects" className="back-to-site">
             Back to discovery <ArrowUpRight size={16} />
           </Link>
-          <button
-            type="button"
-            className="back-to-site"
-            onClick={() => {
-              dispatch({ type: 'logout', role: admin ? 'admin' : 'professional' });
-              navigate(admin ? '/admin/login' : '/');
-            }}
-          >
+          <button type="button" className="back-to-site" onClick={logout}>
             Log out <LogOut size={16} />
           </button>
         </div>
@@ -106,11 +105,38 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
                 <strong>{state.balance}</strong> connects
               </Link>
             )}
-            {!admin && own.photo ? (
-              <img className="mini-avatar" src={own.photo} alt="" />
-            ) : (
-              <span className="mini-avatar">{admin ? 'AD' : own.initials}</span>
-            )}
+            <AccountMenu
+              name={admin ? 'Administrator' : own.studio || own.name || 'Your practice'}
+              detail={admin ? ADMIN_EMAIL : state.contacts[OWN_PROVIDER_ID]?.email}
+              avatar={
+                !admin && own.photo ? (
+                  <img className="mini-avatar" src={own.photo} alt="" />
+                ) : (
+                  <span className="mini-avatar mini-avatar--icon">
+                    <CircleUserRound size={20} />
+                  </span>
+                )
+              }
+            >
+              {!admin && (
+                <>
+                  <Link role="menuitem" to="/dashboard/profile">
+                    My profile
+                  </Link>
+                  {own.status === 'published' && (
+                    <Link role="menuitem" to={`/p/${own.slug}`}>
+                      View public profile
+                    </Link>
+                  )}
+                  <Link role="menuitem" to="/dashboard/connects">
+                    Connects wallet
+                  </Link>
+                </>
+              )}
+              <button role="menuitem" type="button" onClick={logout}>
+                Log out
+              </button>
+            </AccountMenu>
           </div>
         </header>
         {IS_STAGING && (

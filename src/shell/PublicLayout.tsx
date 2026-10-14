@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Menu, X, ArrowRight, ChevronDown, Bookmark } from 'lucide-react';
+import { ArrowUpRight, Menu, X, ArrowRight, Bookmark } from 'lucide-react';
 import { Brand } from './Brand';
+import { AccountMenu } from './AccountMenu';
 import { Button, ButtonLink } from '../components/ui/Button';
 import { useDemo } from '../hooks/useDemo';
 import { initialsOf } from '../lib/format';
@@ -9,70 +10,34 @@ import { IS_STAGING } from '../config/catalog';
 import { toast, Toaster } from '../components/ui/Feedback';
 
 /** Logged-in client: initials with a small menu (My enquiries, Saved, Log out). */
-function AccountMenu() {
+function ClientAccountMenu() {
   const { state, dispatch } = useDemo();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => setOpen(false), [location.pathname]);
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (
-        event instanceof KeyboardEvent
-          ? event.key === 'Escape'
-          : !ref.current?.contains(event.target as Node)
-      )
-        setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', close);
-    };
-  }, [open]);
   const client = state.session.client!;
   return (
-    <div className="account-menu" ref={ref}>
+    <AccountMenu
+      name={client.name}
+      detail={client.email}
+      avatar={<span className="mini-avatar">{initialsOf(client.name)}</span>}
+    >
+      <Link role="menuitem" to="/my-enquiries">
+        My enquiries
+      </Link>
+      <Link role="menuitem" to="/my-enquiries/saved">
+        Saved professionals
+      </Link>
       <button
+        role="menuitem"
         type="button"
-        className="account-trigger"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`Account menu for ${client.name}`}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          dispatch({ type: 'logout', role: 'client' });
+          toast('You’re logged out');
+          navigate('/');
+        }}
       >
-        <span className="mini-avatar">{initialsOf(client.name)}</span>
-        <ChevronDown size={15} />
+        Log out
       </button>
-      {open && (
-        <div className="account-popover" role="menu">
-          <div className="account-name">
-            <strong>{client.name}</strong>
-            <span>{client.email}</span>
-          </div>
-          <Link role="menuitem" to="/my-enquiries">
-            My enquiries
-          </Link>
-          <Link role="menuitem" to="/my-enquiries/saved">
-            Saved professionals
-          </Link>
-          <button
-            role="menuitem"
-            type="button"
-            onClick={() => {
-              dispatch({ type: 'logout', role: 'client' });
-              toast('You’re logged out');
-              navigate('/');
-            }}
-          >
-            Log out
-          </button>
-        </div>
-      )}
-    </div>
+    </AccountMenu>
   );
 }
 
@@ -118,7 +83,7 @@ export function PublicLayout() {
           </nav>
           <div className="header-actions">
             {client ? (
-              <AccountMenu />
+              <ClientAccountMenu />
             ) : professional ? (
               <ButtonLink to="/dashboard" variant="secondary">
                 Your workspace <ArrowUpRight size={16} />
