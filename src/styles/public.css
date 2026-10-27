@@ -6,7 +6,7 @@
   gap: 24px;
   background: var(--brand);
   color: #f2e7dc;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.02em;
 }
 .announcement a {
@@ -69,7 +69,7 @@
   align-items: center;
   gap: 9px;
   margin-bottom: 20px;
-  font-size: 9px;
+  font-size: 11px;
 }
 .hero h1 {
   font-size: clamp(44px, 4.8vw, 65px);
@@ -110,7 +110,7 @@
   flex: 1;
 }
 .hero-search label > span {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
 }
 .hero-search select {
@@ -131,7 +131,7 @@
   flex-wrap: wrap;
   gap: 19px;
   margin-top: 17px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .hero-reassurance > span {
@@ -174,7 +174,7 @@
   justify-content: space-between;
   gap: 12px;
   color: white;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.03em;
 }
 .floating-project {
@@ -200,7 +200,7 @@
 }
 .floating-project span {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--muted);
 }
@@ -240,7 +240,7 @@
   right: -7px;
   top: 50%;
   writing-mode: vertical-rl;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.2em;
   color: var(--muted);
 }
@@ -271,7 +271,7 @@
   font: 400 18px var(--heading);
 }
 .principles-strip > div > div > span {
-  font: 400 10px var(--body);
+  font: 400 11px var(--body);
   color: var(--accent);
 }
 .section-heading {
@@ -346,7 +346,7 @@
   font-size: 22px;
 }
 .studio-card-info p {
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 6px;
 }
 .studio-card-info p > span {
@@ -359,12 +359,12 @@
   margin-inline: 20px;
   padding-block: 12px;
   border-top: 1px solid var(--line);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
 }
 .sample-caption {
   text-align: right;
-  font-size: 9px;
+  font-size: 11px;
   margin-top: 14px;
   color: var(--muted);
 }
@@ -431,14 +431,14 @@
   background: #fff9eef0;
   border-radius: 2px;
   padding: 5px 10px;
-  font-size: 9px;
+  font-size: 11px;
 }
 .project-card h3 {
   font-size: 23px;
   margin-bottom: 6px;
 }
 .project-card p {
-  font-size: 10px;
+  font-size: 11px;
 }
 .project-card p > span {
   margin-inline: 8px;
@@ -510,7 +510,7 @@
   color: var(--brand);
 }
 .privacy-note p {
-  font-size: 10px;
+  font-size: 11px;
 }
 .site-footer {
   border-top: 1px solid var(--line);
@@ -541,7 +541,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 12px;
 }
@@ -550,7 +550,7 @@
   padding-left: 32px;
 }
 .footer-note .eyebrow {
-  font-size: 8px;
+  font-size: 11px;
 }
 .footer-note p {
   font: 400 23px/1.2 var(--heading);
@@ -563,7 +563,7 @@
   padding-block: 19px;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 .footer-bottom > div {
   display: flex;
@@ -603,7 +603,7 @@
   min-width: 250px;
 }
 .city-filter .field label {
-  font-size: 10px;
+  font-size: 11px;
 }
 .filter-bar > .button {
   align-self: flex-end;
@@ -955,7 +955,8 @@
   margin-bottom: 8px;
 }
 .flow-sidebar > p {
-  font-size: 12px;
+  font-size: 13px;
+  color: #4f4943;
 }
 .flow-steps {
   display: flex;
@@ -1163,7 +1164,7 @@
     font-size: 43px;
   }
   .hero-copy .eyebrow {
-    font-size: 8px;
+    font-size: 11px;
   }
   .floating-project {
     left: -10px;
@@ -1191,7 +1192,7 @@
     font-size: 13px;
   }
   .studio-card-info p {
-    font-size: 9px;
+    font-size: 11px;
   }
   .studio-card h3 {
     font-size: 18px;
@@ -1240,7 +1241,7 @@
   }
   .announcement {
     min-height: 30px;
-    font-size: 8px;
+    font-size: 11px;
     gap: 12px;
   }
   .announcement a {
@@ -1250,7 +1251,7 @@
     height: 73px;
   }
   .brand {
-    font-size: 24px;
+    font-size: 19px;
   }
   .header-actions {
     gap: 9px;
@@ -1296,7 +1297,7 @@
     font-size: clamp(45px, 9vw, 68px);
   }
   .hero-copy .eyebrow {
-    font-size: 8px;
+    font-size: 11px;
   }
   .hero-copy > p {
     max-width: 460px;
@@ -1322,7 +1323,7 @@
     font-size: 16px;
   }
   .hero-reassurance {
-    font-size: 9px;
+    font-size: 11px;
   }
   .hero-visual {
     padding-right: 16px;
@@ -1342,10 +1343,10 @@
   }
   .hero-side-note {
     right: -5px;
-    font-size: 7px;
+    font-size: 11px;
   }
   .hero-photo-caption {
-    font-size: 7px;
+    font-size: 11px;
     left: 18px;
     right: 18px;
     bottom: 17px;
@@ -1357,7 +1358,7 @@
   }
   .principles-strip > div > span:first-child {
     width: 100%;
-    font-size: 10px;
+    font-size: 11px;
   }
   .principles-strip > div > span:first-child br {
     display: none;
@@ -1370,7 +1371,7 @@
     gap: 7px;
   }
   .principles-strip > div > div > span {
-    font-size: 8px;
+    font-size: 11px;
   }
   .section-heading {
     align-items: flex-start;
@@ -1402,11 +1403,11 @@
   }
   .studio-card-footer {
     flex-direction: row;
-    font-size: 9px;
+    font-size: 11px;
   }
   .sample-caption {
     text-align: left;
-    font-size: 8px;
+    font-size: 11px;
   }
   .how-section {
     padding-block: 45px;
@@ -1435,7 +1436,7 @@
     font-size: 37px;
   }
   .professional-cta .eyebrow {
-    font-size: 8px;
+    font-size: 11px;
   }
   .cta-art {
     display: none;
@@ -1445,7 +1446,7 @@
     padding-block: 24px 34px;
   }
   .privacy-note p {
-    font-size: 10px;
+    font-size: 11px;
   }
   .footer-top {
     grid-template-columns: 1fr 1fr;
@@ -1466,7 +1467,7 @@
   .footer-bottom {
     flex-direction: column;
     gap: 14px;
-    font-size: 8px;
+    font-size: 11px;
   }
   .footer-bottom > div {
     gap: 24px;
@@ -1517,7 +1518,7 @@
     font-size: 25px;
   }
   .professional-card .meta {
-    font-size: 10px;
+    font-size: 11px;
   }
   .professional-card-work {
     grid-template-columns: 1fr;
@@ -1557,7 +1558,7 @@
     min-width: 180px;
   }
   .profile-header .meta {
-    font-size: 10px;
+    font-size: 11px;
   }
   .profile-aside {
     grid-template-columns: 1fr;
@@ -1570,7 +1571,7 @@
     font-size: 19px;
   }
   .profile-projects p {
-    font-size: 9px;
+    font-size: 11px;
   }
   .profile-projects p span {
     margin-inline: 4px;
@@ -1611,7 +1612,7 @@
   }
   .flow-steps {
     gap: 14px;
-    font-size: 10px;
+    font-size: 11px;
   }
   .client-enquiry {
     padding: 22px;

@@ -8,6 +8,7 @@ import {
   type TextareaHTMLAttributes,
   type ReactNode,
 } from 'react';
+import { Link } from 'react-router-dom';
 import { CITIES as CITY_OPTIONS } from '../../config/catalog';
 type Shared = { label: string; hint?: string; error?: string };
 type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -16,7 +17,7 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 const REQUIRED_MESSAGES: Record<string, string> = {
   'Give your project a name': 'Give your project a name',
   'What would you like to create?': 'Describe what you’d like to create',
-  'Based in': 'Enter the city you’re based in',
+  'Based in': 'Choose the city you’re based in',
   'About the project': 'Tell us about the project',
   'About your practice': 'Tell clients about your practice',
   'A little about this service': 'Describe this service',
@@ -27,8 +28,8 @@ const REQUIRED_MESSAGES: Record<string, string> = {
   'Studio / firm name': 'Enter your studio or firm name',
   'Your name': 'Enter your name',
   'Full name': 'Enter your full name',
-  'Project city': 'Enter the project city',
-  'Add a city': 'Enter a city',
+  'Project city': 'Choose the project city',
+  'Add a city': 'Choose a city',
   'Reason for this action': 'Give a reason for this action',
   'Rejection reason': 'Give a reason for rejecting',
   'What’s the problem?': 'Choose a reason',
@@ -283,14 +284,31 @@ export function Checkbox({
   );
 }
 
-/** Searchable city input backed by the full city list. Any typed city is accepted. */
-export function CityInput({
+/** Three separate, unticked consents: each one is required on its own. */
+export function ConsentBoxes() {
+  return (
+    <div className="consent-boxes">
+      <Checkbox required>
+        I agree to the <Link to="/terms">Terms of service</Link>.
+      </Checkbox>
+      <Checkbox required>
+        I consent to UR DESIGNER using my details as described in the{' '}
+        <Link to="/privacy">Privacy Policy</Link>.
+      </Checkbox>
+      <Checkbox required>I am 18 years of age or older.</Checkbox>
+    </div>
+  );
+}
+
+/** City picker limited to the cities UR DESIGNER covers. */
+export function CitySelect({
   label,
   value,
   onChange,
   required,
   hint,
   id,
+  exclude = [],
 }: {
   label: string;
   value: string;
@@ -298,32 +316,25 @@ export function CityInput({
   required?: boolean;
   hint?: string;
   id?: string;
+  /** Cities already chosen elsewhere, e.g. the city a professional is based in. */
+  exclude?: string[];
 }) {
-  const listId = useId();
+  // A city saved before the list was narrowed stays visible until it's changed.
+  const options = CITY_OPTIONS.filter((c) => !exclude.includes(c));
   return (
-    <>
-      <Input
-        id={id}
-        label={label}
-        value={value}
-        list={listId}
-        required={required}
-        autoComplete="address-level2"
-        placeholder="Start typing a city"
-        hint={hint}
-        maxLength={60}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={(e) => {
-          const typed = e.target.value.trim().toLowerCase();
-          const match = CITY_OPTIONS.find((c) => c.toLowerCase() === typed);
-          if (match && match !== e.target.value) onChange(match);
-        }}
-      />
-      <datalist id={listId}>
-        {CITY_OPTIONS.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
-    </>
+    <Select
+      id={id}
+      label={label}
+      value={value}
+      required={required}
+      hint={hint}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">Choose a city</option>
+      {value && !CITY_OPTIONS.includes(value) && <option value={value}>{value}</option>}
+      {options.map((c) => (
+        <option key={c}>{c}</option>
+      ))}
+    </Select>
   );
 }

@@ -5,7 +5,11 @@ import { useDemo } from '../../hooks/useDemo';
 import { INTRODUCTION_NOTICE } from '../../config/catalog';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button, ButtonLink } from '../../components/ui/Button';
-import { Avatar, SaveButton } from '../../components/professionals/ProfessionalCard';
+import {
+  Avatar,
+  SaveButton,
+  portfolioImages,
+} from '../../components/professionals/ProfessionalCard';
 import { StatusBadge, Notice, EmptyState, toast } from '../../components/ui/Feedback';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ContactReveal } from '../../components/enquiries/ContactReveal';
@@ -13,7 +17,7 @@ import { RequirementSummary } from '../../components/enquiries/RequirementSummar
 import { DemoNotice } from '../../components/ui/DemoNotice';
 import { Input } from '../../components/ui/Field';
 import { OtpForm } from '../auth/OtpForm';
-import { dateLabel, experienceLabel, plural, servicePrice } from '../../lib/format';
+import { dateLabel, experienceLabel, plural, servicePrice, slugify } from '../../lib/format';
 import type { DemoState } from '../../types/domain';
 
 const SAMPLE_CLIENT_PHONE = '9812345678';
@@ -29,8 +33,8 @@ function ClientSignIn() {
         <span className="eyebrow">MY ENQUIRIES</span>
         <h1>See your enquiries and proposals.</h1>
         <p>
-          Enter the mobile number you used when you sent an enquiry. We’ll send a code — no password
-          needed.
+          Enter the mobile number you used when you sent an enquiry. We’ll send a code, so no
+          password is needed.
         </p>
         {step === 'phone' ? (
           <form
@@ -63,7 +67,7 @@ function ClientSignIn() {
               dispatch({
                 type: 'login',
                 role: 'client',
-                client: known || { name: 'UrDesigner client', email: '', phone },
+                client: known || { name: 'UR DESIGNER client', email: '', phone },
               });
               toast('You’re signed in');
             }}
@@ -81,6 +85,16 @@ function ClientSignIn() {
   );
 }
 
+/** The studio's cover photo, or its avatar when it has no photos yet. */
+function SavedPhoto({ professional: p }: { professional: DemoState['providers'][number] }) {
+  const photo = p.cover || portfolioImages(p)[0];
+  return photo ? (
+    <img className="saved-photo" src={photo} alt={`Work by ${p.studio || p.name}`} />
+  ) : (
+    <Avatar professional={p} large />
+  );
+}
+
 function SavedList({ state }: { state: DemoState }) {
   const saved = state.providers.filter(
     (p) => state.saved.includes(p.id) && p.status === 'published',
@@ -94,8 +108,8 @@ function SavedList({ state }: { state: DemoState }) {
   return (
     <div className="stack-sm">
       {saved.map((p) => (
-        <div className="client-enquiry-row" key={p.id}>
-          <Avatar professional={p} />
+        <div className="client-enquiry-row saved-row" key={p.id}>
+          <SavedPhoto professional={p} />
           <div>
             <h3>{p.studio || p.name}</h3>
             <p>
@@ -206,7 +220,10 @@ export function ClientEnquiries() {
               })}
               {enquiries.length < 5 && !r.closedAt && !decided && (
                 <div style={{ paddingTop: 20 }}>
-                  <Link className="text-link" to={`/architects?requirement=${r.id}`}>
+                  <Link
+                    className="text-link"
+                    to={`/architects/${slugify(r.city)}?requirement=${r.id}`}
+                  >
                     Share this project with another professional <ArrowUpRight size={15} />
                   </Link>
                 </div>
@@ -247,8 +264,8 @@ export function ClientEnquiries() {
       >
         <p>
           {closingRequirement?.title}: professionals who haven’t heard back will see that you’ve
-          closed it, and open proposals are withdrawn. You can’t reopen it, but you can always start
-          a new one.
+          closed it, and open proposals are withdrawn. Professionals who already sent you a proposal
+          get their connects back in full. You can’t reopen it, but you can always start a new one.
         </p>
       </ConfirmDialog>
     </div>
@@ -290,8 +307,9 @@ export function SavedProfessionals() {
                 <th scope="col">Practice</th>
                 {saved.map((p) => (
                   <th key={p.id} scope="col">
-                    <Link className="text-link" to={`/p/${p.slug}`}>
-                      {p.studio || p.name}
+                    <Link className="compare-photo" to={`/p/${p.slug}`}>
+                      <SavedPhoto professional={p} />
+                      <span className="text-link">{p.studio || p.name}</span>
                     </Link>
                   </th>
                 ))}
@@ -310,7 +328,7 @@ export function SavedProfessionals() {
                   (p: (typeof saved)[number]) => plural(p.projects.length, 'project'),
                 ],
                 [
-                  'COA number',
+                  'CoA number',
                   (p: (typeof saved)[number]) => (p.coaNumber ? 'Provided' : 'Not provided'),
                 ],
               ].map(([label, value]) => (
@@ -412,6 +430,7 @@ export function ClientProposal() {
               }
               phone={contact?.phone}
               email={contact?.email}
+              links={professional.links}
               project={requirement.title}
             />
           )}
@@ -487,7 +506,7 @@ export function ClientProposal() {
           });
           toast(
             decision === 'accepted'
-              ? 'Proposal accepted — contact details are below'
+              ? 'Proposal accepted. Contact details are below.'
               : 'Proposal declined',
           );
         }}
@@ -495,7 +514,8 @@ export function ClientProposal() {
         {decision === 'accepted' ? (
           <>
             <p>
-              You’ll both see each other’s phone and email straight away. This is the start of a
+              You’ll both see each other’s phone and email straight away.{' '}
+              <strong>Accepting is an introduction, not a contract.</strong> It’s the start of a
               conversation, not a commitment to hire.
             </p>
             <p>
@@ -505,10 +525,7 @@ export function ClientProposal() {
             </p>
           </>
         ) : (
-          <p>
-            The professional will see your decision and receive half their connects back. This
-            proposal will be closed.
-          </p>
+          <p>The professional will see your decision, and this proposal will be closed.</p>
         )}
       </ConfirmDialog>
     </div>

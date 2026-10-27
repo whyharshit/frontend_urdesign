@@ -10,21 +10,16 @@ export function worksOn(p: Professional, projectType: string) {
     p.services.some((s) => s.category.toLowerCase().startsWith(type))
   );
 }
-export const SORTS = [
-  ['active', 'Recently active'],
-  ['experience', 'Most experienced'],
-  ['projects', 'Most projects'],
-] as const;
+/** Cities a professional takes work in: where they're based plus any they've added. */
+export const citiesOf = (p: Professional) => [p.city, ...(p.workCities || [])].filter(Boolean);
+export const servesCity = (p: Professional, city: string) =>
+  citiesOf(p).some((c) => slugify(c) === slugify(city));
 
 export function filterProfessionals(providers: Professional[], filters: Partial<SearchFilters>) {
   return providers
     .filter((p) => {
       if (p.status !== 'published') return false;
-      if (
-        filters.city &&
-        ![p.city, ...(p.workCities || [])].some((c) => slugify(c) === slugify(filters.city!))
-      )
-        return false;
+      if (filters.city && !servesCity(p, filters.city)) return false;
       if (filters.q) {
         const q = filters.q.trim().toLowerCase();
         if (q && !`${p.name} ${p.studio}`.toLowerCase().includes(q)) return false;
@@ -53,13 +48,7 @@ export function filterProfessionals(providers: Professional[], filters: Partial<
       }
       return true;
     })
-    .sort((a, b) =>
-      filters.sort === 'experience'
-        ? b.years - a.years
-        : filters.sort === 'projects'
-          ? b.projects.length - a.projects.length
-          : b.lastActive.localeCompare(a.lastActive) || b.completeness - a.completeness,
-    );
+    .sort((a, b) => b.lastActive.localeCompare(a.lastActive) || b.completeness - a.completeness);
 }
 
 /** The connect band follows the design fee, so nobody can pick the cheapest band by hand. */
@@ -105,6 +94,11 @@ export function canContact(
   if (sent.some((e) => e.providerId === providerId))
     return 'You have already sent this project to this professional.';
   if (sent.length >= 5) return "You've contacted the maximum of 5 professionals for this project.";
+  // Professionals pay connects to reply, so a project only goes to people who work in its city.
+  const requirement = state.requirements.find((r) => r.id === requirementId);
+  const provider = state.providers.find((p) => p.id === providerId);
+  if (requirement && provider && !servesCity(provider, requirement.city))
+    return `${provider.studio || provider.name} doesn’t take work in ${requirement.city}.`;
   return null;
 }
 export function hasContactDetails(text: string) {

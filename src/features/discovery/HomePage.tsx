@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -18,33 +18,6 @@ import { ProfessionalCard } from '../../components/professionals/ProfessionalCar
 import { ProjectCard } from '../../components/projects/ProjectCard';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { HeroVisual } from './components/HeroVisual';
-
-/** Sections fade up once as they scroll in. Content stays visible without JavaScript. */
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const root = ref.current;
-    if (!root || !('IntersectionObserver' in window)) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const sections = [...root.querySelectorAll<HTMLElement>('.reveal')].filter(
-      (el) => el.getBoundingClientRect().top > window.innerHeight,
-    );
-    sections.forEach((el) => el.classList.add('reveal--waiting'));
-    const observer = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.remove('reveal--waiting');
-            observer.unobserve(entry.target);
-          }
-        }),
-      { rootMargin: '0px 0px -8% 0px' },
-    );
-    sections.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
-  return ref;
-}
 
 /** Featured studios glide sideways on their own; hovering or focusing pauses them. */
 function StudioCarousel({ children }: { children: ReactNode }) {
@@ -94,14 +67,12 @@ const principles = ['Discover the work', 'Find your people', 'Start a conversati
 
 export function HomePage() {
   const [city, setCity] = useState('');
-  const [cityError, setCityError] = useState('');
   const navigate = useNavigate();
-  const { state } = useDemo();
-  const listId = useId();
-  const reveal = useReveal();
+  const { state, ready } = useDemo();
+  const professional = ready && state.session.professional;
   const providers = state.providers.filter((p) => p.status === 'published');
   return (
-    <div ref={reveal}>
+    <div>
       <section className="hero container">
         <div className="hero-copy">
           <span className="eyebrow">SPACES WITH SOUL. PEOPLE WITH VISION.</span>
@@ -121,37 +92,24 @@ export function HomePage() {
             action="/architects"
             onSubmit={(e) => {
               e.preventDefault();
-              const match = CITIES.find((c) => c.toLowerCase() === city.trim().toLowerCase());
-              if (city.trim() && !match) {
-                setCityError('Choose a city from the list, or leave it empty to see everyone');
-                return;
-              }
-              navigate(match ? `/architects/${slugify(match)}` : '/architects');
+              navigate(city ? `/architects/${slugify(city)}` : '/architects');
             }}
           >
             <div>
               <MapPin size={20} />
               <label htmlFor="hero-city">
                 <span>Where’s your project?</span>
-                <input
+                <select
                   id="hero-city"
                   name="city"
-                  list={listId}
                   value={city}
-                  placeholder="Any city in India"
-                  autoComplete="address-level2"
-                  aria-invalid={!!cityError}
-                  aria-describedby={cityError ? 'hero-city-error' : undefined}
-                  onChange={(e) => {
-                    setCity(e.target.value);
-                    setCityError('');
-                  }}
-                />
-                <datalist id={listId}>
+                  onChange={(e) => setCity(e.target.value)}
+                >
+                  <option value="">All cities</option>
                   {CITIES.map((c) => (
-                    <option key={c} value={c} />
+                    <option key={c}>{c}</option>
                   ))}
-                </datalist>
+                </select>
               </label>
             </div>
             <Button type="submit">
@@ -159,11 +117,6 @@ export function HomePage() {
               <span>Find a professional</span>
             </Button>
           </form>
-          {cityError && (
-            <small id="hero-city-error" className="error-text" role="alert">
-              {cityError}
-            </small>
-          )}
           <div className="hero-reassurance">
             <span>
               <Check size={14} /> Free to explore
@@ -195,7 +148,7 @@ export function HomePage() {
           </div>
         </div>
       </div>
-      <section className="section container reveal">
+      <section className="section container">
         <div className="section-heading">
           <div>
             <span className="eyebrow">THE PEOPLE BEHIND THE SPACES</span>
@@ -212,7 +165,7 @@ export function HomePage() {
           ))}
         </StudioCarousel>
       </section>
-      <section className="how-section reveal" id="how-it-works">
+      <section className="how-section" id="how-it-works">
         <div className="container">
           <div className="how-intro">
             <span className="eyebrow">FROM AN IDEA TO A FIRST HELLO</span>
@@ -255,12 +208,12 @@ export function HomePage() {
           </div>
         </div>
       </section>
-      <section className="section container reveal">
+      <section className="section container">
         <div className="section-heading">
           <div>
             <span className="eyebrow">POSSIBILITIES, IN PICTURES</span>
             <h2>A little inspiration. A fresh perspective.</h2>
-            <p>Spaces from the practices on UrDesigner.</p>
+            <p>Spaces from the practices on UR DESIGNER.</p>
           </div>
           <Link to="/architects" className="text-link">
             Find a professional <ArrowUpRight size={18} />
@@ -275,35 +228,37 @@ export function HomePage() {
             ))}
         </div>
       </section>
-      <section className="container reveal">
-        <div className="professional-cta">
-          <div>
-            <span className="eyebrow">FOR ARCHITECTS & INTERIOR DESIGNERS</span>
-            <h2>
-              You shape spaces.
-              <br />
-              Let your work open doors.
-            </h2>
-            <p>
-              A place for your practice, your portfolio and your next introduction. Create your
-              profile for free.
-            </p>
-            <ButtonLink to="/join" variant="light">
-              Join as a professional <ArrowUpRight size={18} />
-            </ButtonLink>
+      {!professional && (
+        <section className="container">
+          <div className="professional-cta">
+            <div>
+              <span className="eyebrow">FOR ARCHITECTS & INTERIOR DESIGNERS</span>
+              <h2>
+                You shape spaces.
+                <br />
+                Let your work open doors.
+              </h2>
+              <p>
+                A place for your practice, your portfolio and your next introduction. Create your
+                profile for free.
+              </p>
+              <ButtonLink to="/join" variant="light">
+                Join as a professional <ArrowUpRight size={18} />
+              </ButtonLink>
+            </div>
+            <div className="cta-art" aria-hidden="true">
+              <div className="arch arch-one" />
+              <div className="arch arch-two" />
+              <div className="arch arch-three" />
+              <span>
+                MAKE ROOM
+                <br />
+                FOR WHAT’S NEXT.
+              </span>
+            </div>
           </div>
-          <div className="cta-art" aria-hidden="true">
-            <div className="arch arch-one" />
-            <div className="arch arch-two" />
-            <div className="arch arch-three" />
-            <span>
-              MAKE ROOM
-              <br />
-              FOR WHAT’S NEXT.
-            </span>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
       <div className="privacy-note container">
         <LockKeyhole size={17} />
         <p>

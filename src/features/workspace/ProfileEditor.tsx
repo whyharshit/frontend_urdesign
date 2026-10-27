@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, ArrowUpRight, ImagePlus, Trash2, X } from 'lucide-react';
 import { useOwnProfile } from '../../hooks/useOwnProfile';
 import { useDemo } from '../../hooks/useDemo';
-import { CITIES, PROFESSIONAL_TYPES, CONTACT_WARNING } from '../../config/catalog';
+import { PROFESSIONAL_TYPES, CONTACT_WARNING } from '../../config/catalog';
 import { hasContactDetails, publishChecks } from '../../lib/rules';
 import { capitaliseWords, experienceLabel, slugify } from '../../lib/format';
 import { readDemoImage } from '../../services/demoImages';
@@ -11,7 +11,7 @@ import { ProfileContent } from '../../components/professionals/ProfileContent';
 import { PublishChecklist } from '../../components/professionals/PublishChecklist';
 import { PageHeading } from '../../components/ui/PageHeading';
 import {
-  CityInput,
+  CitySelect,
   Input,
   NAME_PATTERN,
   NAME_TITLE,
@@ -112,7 +112,7 @@ export function ProfileFields() {
           label="Studio / firm name"
           value={p.studio}
           maxLength={80}
-          placeholder="Optional — make your practice the headline"
+          placeholder="Optional: make your practice the headline"
           onChange={(e) => update({ studio: e.target.value })}
           onBlur={() => update({ studio: capitaliseWords(p.studio.trim()) })}
         />
@@ -128,7 +128,7 @@ export function ProfileFields() {
             <option key={t}>{t}</option>
           ))}
         </Select>
-        <CityInput
+        <CitySelect
           id="city"
           label="Based in"
           value={p.city}
@@ -180,11 +180,11 @@ export function ProfileFields() {
           }
         />
         <Input
-          label="COA registration number (optional)"
+          label="CoA registration number (optional)"
           value={p.coaNumber || ''}
           maxLength={30}
           placeholder="e.g. CA/2016/78231"
-          hint="Shown as “COA number provided” until our team checks the register."
+          hint="Shown as “CoA number provided” until our team checks the register."
           onChange={(e) => update({ coaNumber: e.target.value.toUpperCase() })}
         />
         <div className="full-width stack-sm">
@@ -206,17 +206,19 @@ export function ProfileFields() {
             ))}
           </div>
           <div className="inline-add">
-            <CityInput label="Add a city" value={workCity} onChange={setWorkCity} />
+            <CitySelect
+              label="Add a city"
+              value={workCity}
+              exclude={[p.city, ...(p.workCities || [])]}
+              onChange={setWorkCity}
+            />
             <Button
               type="button"
               variant="secondary"
-              disabled={!workCity.trim()}
+              disabled={!workCity}
               onClick={() => {
-                const city =
-                  CITIES.find((c) => c.toLowerCase() === workCity.trim().toLowerCase()) ||
-                  capitaliseWords(workCity.trim());
-                if (city !== p.city && !(p.workCities || []).includes(city))
-                  update({ workCities: [...(p.workCities || []), city].slice(0, 15) });
+                if (workCity !== p.city && !(p.workCities || []).includes(workCity))
+                  update({ workCities: [...(p.workCities || []), workCity] });
                 setWorkCity('');
               }}
             >
@@ -227,6 +229,9 @@ export function ProfileFields() {
         </div>
         <div className="full-width stack-sm">
           <span className="field-label">Website & social links (up to 3)</span>
+          <small className="muted">
+            Clients see that you have these, and get the links when they accept your proposal.
+          </small>
           {links.map((link, i) => (
             <Input
               key={i}
@@ -261,7 +266,7 @@ export function ProfileFields() {
                 value={slug}
                 maxLength={60}
                 hint="You can change this once."
-                error={slugTaken ? 'That link is taken — try another' : undefined}
+                error={slugTaken ? 'That link is taken. Try another.' : undefined}
                 onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
               />
               <Button

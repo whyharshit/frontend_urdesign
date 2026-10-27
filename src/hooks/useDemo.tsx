@@ -10,9 +10,9 @@ import {
 import { createSeedState } from '../data/seed';
 import { demoReducer, type DemoAction } from '../data/demoReducer';
 import type { DemoState } from '../types/domain';
-const STORAGE_KEY = 'urdesigner.demo.v3';
+const STORAGE_KEY = 'urdesigner.demo.v4';
 /** Earlier demo versions: their shape no longer matches, so they're removed, not migrated. */
-const OLD_KEYS = ['urdesigner.demo.v1', 'urdesigner.demo.v2'];
+const OLD_KEYS = ['urdesigner.demo.v1', 'urdesigner.demo.v2', 'urdesigner.demo.v3'];
 const DemoContext = createContext<{
   state: DemoState;
   dispatch: Dispatch<DemoAction>;
@@ -30,7 +30,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (saved) {
         const parsed = JSON.parse(saved) as DemoState;
         if (
-          parsed.version === 3 &&
+          parsed.version === 4 &&
           typeof parsed.ownId === 'string' &&
           Array.isArray(parsed.providers) &&
           parsed.providers.some((p) => p.id === parsed.ownId) &&

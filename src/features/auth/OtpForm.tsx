@@ -48,7 +48,7 @@ export function OtpForm({
         ) : (
           <>
             {phone ? `We’ve sent a code to ${formatPhone(phone)}. ` : ''}No SMS is sent in this
-            preview — enter <strong>123456</strong>.
+            preview. Enter <strong>123456</strong>.
           </>
         )}
       </Notice>

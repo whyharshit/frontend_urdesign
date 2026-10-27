@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { NavLink, Outlet, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -39,6 +40,17 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
   const { state, storageError, ready, dispatch } = useDemo();
   const location = useLocation();
   const navigate = useNavigate();
+  const nav = useRef<HTMLElement>(null);
+  // On phones the tabs scroll sideways: keep the current one in view.
+  useEffect(() => {
+    const active = nav.current?.querySelector<HTMLElement>('a.active');
+    const strip = nav.current;
+    if (active && strip && strip.scrollWidth > strip.clientWidth)
+      strip.scrollLeft +=
+        active.getBoundingClientRect().left -
+        strip.getBoundingClientRect().left -
+        (strip.clientWidth - active.offsetWidth) / 2;
+  }, [location.pathname, ready]);
   // Neither workspace is open to anyone with the URL: wait for the saved session, then require
   // the matching login. The server always renders the empty shell, so nothing private leaks.
   if (!ready) return <div className="workspace-loading" aria-busy="true" />;
@@ -63,7 +75,7 @@ export function WorkspaceLayout({ admin = false }: { admin?: boolean }) {
       <aside className="sidebar">
         <Brand />
         <span className="sidebar-label">{admin ? 'ADMIN WORKSPACE' : 'YOUR WORKSPACE'}</span>
-        <nav aria-label={admin ? 'Admin navigation' : 'Professional navigation'}>
+        <nav ref={nav} aria-label={admin ? 'Admin navigation' : 'Professional navigation'}>
           {(admin ? adminLinks : proLinks).map(({ to, label, Icon, ...rest }) => (
             <NavLink key={to} to={to} end={'end' in rest && rest.end}>
               <Icon size={19} />

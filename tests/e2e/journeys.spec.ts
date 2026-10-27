@@ -20,6 +20,13 @@ async function signInProfessional(page: Page, path = '/dashboard') {
   await expect(page).toHaveURL((url) => url.pathname === path);
 }
 
+/** Terms, data consent and 18+ are three separate boxes; tick them all. */
+async function tickConsents(page: Page) {
+  const boxes = page.getByRole('checkbox');
+  await expect(boxes).toHaveCount(3);
+  for (const box of await boxes.all()) await box.check();
+}
+
 async function signInAdmin(page: Page, path = '/admin') {
   await page.goto(path);
   await expect(page).toHaveURL(/\/admin\/login/);
@@ -101,11 +108,12 @@ test('project-first enquiry flow verifies a sample identity and sends', async ({
     .fill(
       'We would like a calm family home around a courtyard with abundant natural light and ventilation.',
     );
+  await page.getByLabel('Service required').selectOption('Architectural Design');
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByLabel('Your name').fill('Sample Client');
   await page.getByRole('textbox', { name: /^Email/ }).fill('sample@example.invalid');
   await page.getByLabel('Mobile number').fill('9876543210');
-  await page.getByRole('checkbox').check();
+  await tickConsents(page);
   await page.getByRole('button', { name: 'Continue to verification' }).click();
   await page.getByLabel('Six-digit verification code').fill('123456');
   await page.getByRole('button', { name: 'Verify & continue' }).click();
@@ -136,11 +144,19 @@ test('profile autosave, services and project upload update discovery', async ({ 
 
 test('a reused requirement stays selected through professional discovery', async ({ page }) => {
   await signInClient(page);
-  await page.goto('/architects?requirement=r1');
+  await page.goto('/my-enquiries');
+  await page
+    .getByRole('link', { name: 'Share this project with another professional' })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/architects\/ahmedabad\?requirement=r1/);
+  await expect(page.getByText('Sharing: A warm, contemporary family home')).toBeVisible();
+  // Only Ahmedabad practices: no Mumbai or Bengaluru studios to pay for a lead they can't take.
+  await expect(page.getByRole('heading', { name: 'Form & Field' })).toHaveCount(0);
   await page.getByRole('link', { name: 'View profile' }).nth(2).click();
   await page.getByRole('link', { name: 'Send enquiry', exact: true }).first().click();
   await expect(page.getByLabel('Start a new project or reuse a requirement')).toHaveValue('r1');
-  await page.getByRole('button', { name: 'Send to Form & Field' }).click();
+  await page.getByRole('button', { name: 'Send to Studio Mitti' }).click();
   await expect(page.getByRole('heading', { name: 'Your idea is on its way.' })).toBeVisible();
   await page.getByRole('link', { name: 'View my enquiries' }).click();
   await expect(page.getByText(/3 of 5 professionals contacted/)).toBeVisible();
@@ -177,6 +193,7 @@ test('core routes load with no console errors, broken images or horizontal overf
     '/admin/reports',
     '/my-enquiries',
     '/my-enquiries/saved',
+    '/connects',
     '/terms',
     '/privacy',
   ];
@@ -227,7 +244,7 @@ test('a new professional sets up a profile before reaching the dashboard', async
   await page.getByLabel('Mobile number').fill('9000000001');
   await page.getByLabel('Email address').fill('new@studio.in');
   await page.getByLabel('Password').fill('a-strong-pass');
-  await page.getByRole('checkbox').check();
+  await tickConsents(page);
   await page.getByRole('button', { name: 'Continue to verification' }).click();
   await page.getByLabel('Six-digit verification code').fill('123456');
   await page.getByRole('button', { name: 'Verify & continue' }).click();
@@ -251,6 +268,7 @@ test('the enquiry form explains what is wrong and enforces the 20-character rule
   await expect(page.getByText('A first introduction starts with you.')).toHaveCount(0);
   const options = await page.getByLabel('Service required').locator('option').allTextContents();
   expect(options).toEqual([
+    'Choose a service',
     'Architectural Design',
     'Residential Interior Design',
     'Space Planning',
@@ -313,6 +331,7 @@ test('QA fixes: enquiry form wording, negative size and short emails', async ({ 
   await page
     .getByLabel('What would you like to create?')
     .fill('A calm family home around a courtyard with plenty of light.');
+  await page.getByLabel('Service required').selectOption('Space Planning');
   await page.getByLabel('Project size (optional)').fill('-500');
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page.getByText('Enter 1 or more')).toBeVisible();
@@ -321,8 +340,35 @@ test('QA fixes: enquiry form wording, negative size and short emails', async ({ 
   await page.getByLabel('Your name').fill('<script>alert(1)</script>');
   await page.getByRole('textbox', { name: /^Email/ }).fill('a@b');
   await page.getByLabel('Mobile number').fill('9876543210');
-  await page.getByRole('checkbox').check();
+  await tickConsents(page);
   await page.getByRole('button', { name: 'Continue to verification' }).click();
   await expect(page.getByText(/Use letters only/)).toBeVisible();
   await expect(page.getByText('Enter a valid email, e.g. name@example.com')).toBeVisible();
+});
+
+test('review r6: honest profiles, three cities, own-profile view and public connects page', async ({
+  page,
+}) => {
+  await page.goto('/p/aangan-studio-ahmedabad');
+  // CoA is plain text, not a badge; there are no outbound links before acceptance.
+  await expect(page.getByText('CoA number provided').first()).toBeVisible();
+  await expect(page.locator('.profile-header svg.lucide-badge-check')).toHaveCount(0);
+  await expect(page.locator('.profile-aside a[href^="http"]')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Send enquiry' }).first()).toBeVisible();
+  await page.goto('/architects');
+  const cities = await page.getByLabel('Project city').locator('option').allTextContents();
+  expect(cities).toEqual(['All cities', 'Ahmedabad', 'Mumbai', 'Bengaluru']);
+  await expect(page.getByText(/\d+ professionals?/)).toHaveCount(0);
+  await expect(page.getByLabel('Sort by')).toHaveCount(0);
+  await page.goto('/connects');
+  await expect(page.getByRole('heading', { name: 'How connects work.' })).toBeVisible();
+  await expect(page.getByText('150 connects (₹150)')).toBeVisible();
+  await signInProfessional(page);
+  await page.goto('/p/aangan-studio-ahmedabad');
+  await expect(page.getByText('This is your public profile, as clients see it.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Send enquiry' })).toHaveCount(0);
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: /Join as a professional/ })).toHaveCount(0);
+  await page.goto('/p/no-such-studio');
+  await expect(page.getByText('Profile not found.')).toBeVisible();
 });

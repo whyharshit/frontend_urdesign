@@ -6,7 +6,7 @@ export function getPageMetadata(url: string) {
   const { pathname, searchParams } = new URL(url, 'http://localhost');
   let title = 'Thoughtful spaces start with the right people';
   let description =
-    'Discover architects and interior designers in India. Explore portfolios, compare services and connect on your terms with UrDesigner.';
+    'Discover architects and interior designers in India. Explore portfolios, compare services and connect on your terms with UR DESIGNER.';
   let status = 200;
   // Picture for link previews (og:image); a profile or project uses its own photo.
   let image = '/images/living.jpg';
@@ -15,7 +15,7 @@ export function getPageMetadata(url: string) {
     const citySlug = pathname.split('/')[2];
     if (citySlug && !city) {
       return {
-        title: 'City not found | UrDesigner',
+        title: 'City not found | UR DESIGNER',
         description,
         status: 404,
         private: true,
@@ -50,6 +50,7 @@ export function getPageMetadata(url: string) {
       '/forgot-password': 'Reset your password',
       '/my-enquiries': 'My enquiries',
       '/my-enquiries/saved': 'Saved professionals',
+      '/connects': 'How connects work',
       '/terms': 'Terms of service',
       '/privacy': 'Privacy policy',
       '/playground': 'Explore the frontend',
@@ -93,7 +94,7 @@ export function getPageMetadata(url: string) {
     }
   }
   return {
-    title: `${title} | UrDesigner`,
+    title: `${title} | UR DESIGNER`,
     description,
     status,
     image,

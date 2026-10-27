@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Coins, ArrowUpRight, Copy, Gift, CreditCard, Check } from 'lucide-react';
 import { useDemo } from '../../hooks/useDemo';
-import { CONNECT_PACKS } from '../../config/catalog';
-import { money, dateLabel, uid, connectValue, connectRate } from '../../lib/format';
+import { CONNECT_PACKS, PROPOSAL_VALID_DAYS } from '../../config/catalog';
+import { money, dateLabel, uid } from '../../lib/format';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Field';
@@ -69,8 +69,8 @@ export function WalletPage() {
             <span>connects</span>
           </strong>
           <p>
-            Worth {connectValue(state.balance)} at pack prices ({connectRate()} per connect,
-            depending on the pack).
+            {state.balance.toLocaleString('en-IN')} connects ({money(state.balance)}). Each proposal
+            is valid for {PROPOSAL_VALID_DAYS} days.
           </p>
         </div>
         <ButtonLink variant="light" to="/dashboard/connects/buy">
@@ -81,8 +81,8 @@ export function WalletPage() {
       <div className="stack">
         <Notice>
           Connects never expire. You spend them when you send a proposal, with the cost based on
-          your own design fee. A client decline returns 50%; no reply by the validity date returns
-          100%.
+          your own design fee. Each proposal is valid for {PROPOSAL_VALID_DAYS} days: a client
+          decline returns 50%, and no reply within {PROPOSAL_VALID_DAYS} days returns 100%.
         </Notice>
         <section className="panel">
           <div className="panel-heading">
@@ -302,7 +302,7 @@ export function PaymentPage() {
               maxLength={40}
               pattern="[a-zA-Z0-9]{6,40}"
               value={reference}
-              hint="6–40 letters or numbers. A reference can be submitted only once."
+              hint="6 to 40 letters or numbers. A reference can be submitted only once."
               onChange={(e) => setReference(e.target.value)}
             />
             {error && <Notice tone="warning">{error}</Notice>}

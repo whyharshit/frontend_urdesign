@@ -7,6 +7,8 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState, Notice } from '../../components/ui/Feedback';
 import { useDemo } from '../../hooks/useDemo';
 import { createSeedState } from '../../data/seed';
+import { CONNECT_PACKS, FEE_BANDS, PROPOSAL_VALID_DAYS } from '../../config/catalog';
+import { connectsLabel } from '../../lib/format';
 
 export function NotFoundPage() {
   return (
@@ -28,7 +30,7 @@ export function DemoPage() {
   return (
     <div className="container section stack">
       <PageHeading
-        eyebrow="URDESIGNER · FRONTEND PREVIEW"
+        eyebrow="UR DESIGNER · FRONTEND PREVIEW"
         title="One platform. Three perspectives."
         description="Explore the connected client, professional and admin journeys with sample data."
       />
@@ -114,16 +116,107 @@ export function DemoPage() {
   );
 }
 
+/** Public explainer for professionals, linked from the footer. No login needed. */
+export function ConnectsInfoPage() {
+  const { state, ready } = useDemo();
+  const professional = ready && state.session.professional;
+  return (
+    <div className="container section stack connects-info">
+      <PageHeading
+        eyebrow="FOR ARCHITECTS & INTERIOR DESIGNERS"
+        title="How connects work."
+        description="Connects are how professionals reply to enquiries on UR DESIGNER. Clients never pay anything."
+      />
+      <div className="connects-steps">
+        {[
+          {
+            title: 'Start with 200 free',
+            body: 'Every new professional gets 200 launch connects when they join. Creating and publishing a profile is free.',
+          },
+          {
+            title: 'Spend them on a proposal',
+            body: 'Reading an enquiry is free. You only spend connects when you send a proposal, and the cost follows the design fee you quote.',
+          },
+          {
+            title: `Valid for ${PROPOSAL_VALID_DAYS} days`,
+            body: `Each proposal stays open for ${PROPOSAL_VALID_DAYS} days. If the client doesn’t reply in that time, every connect comes back.`,
+          },
+        ].map((step, i) => (
+          <article className="panel" key={step.title}>
+            <span className="eyebrow">STEP {i + 1}</span>
+            <h2>{step.title}</h2>
+            <p>{step.body}</p>
+          </article>
+        ))}
+      </div>
+      <section className="panel">
+        <h2>What a proposal costs</h2>
+        <p className="small">Set automatically from the design fee in your proposal.</p>
+        <div className="table-wrap">
+          <table>
+            <caption className="sr-only">Connects needed per proposal, by design fee</caption>
+            <thead>
+              <tr>
+                <th>Your design fee</th>
+                <th>Connects to send</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FEE_BANDS.map((band) => (
+                <tr key={band.id}>
+                  <td>{band.label}</td>
+                  <td>{connectsLabel(band.cost)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="panel">
+        <h2>When connects come back</h2>
+        <ul className="plain-list connects-refunds">
+          <li>
+            <strong>The client declines:</strong> half your connects return.
+          </li>
+          <li>
+            <strong>No reply in {PROPOSAL_VALID_DAYS} days:</strong> all your connects return.
+          </li>
+          <li>
+            <strong>The client closes the enquiry:</strong> all your connects return.
+          </li>
+          <li>
+            <strong>Unused connects</strong> never expire.
+          </li>
+        </ul>
+        <p className="small">
+          Need more? Packs start at {CONNECT_PACKS[0].connects} connects for ₹
+          {CONNECT_PACKS[0].price}.
+        </p>
+      </section>
+      <div className="button-row">
+        {professional ? (
+          <ButtonLink to="/dashboard/connects">Open your connects wallet</ButtonLink>
+        ) : (
+          <ButtonLink to="/join">Join as a professional</ButtonLink>
+        )}
+        <ButtonLink variant="secondary" to="/terms">
+          Read the terms
+        </ButtonLink>
+      </div>
+    </div>
+  );
+}
+
 const TERMS: [string, string[]][] = [
   [
-    '1. About UrDesigner',
+    '1. About UR DESIGNER',
     [
-      'UrDesigner ("we", "us") is an online platform that helps people ("clients") discover architects, interior designers and other design professionals ("professionals") in India, share a project requirement and receive written proposals.',
+      'UR DESIGNER ("we", "us") is an online platform that helps people ("clients") discover architects, interior designers and other design professionals ("professionals") in India, share a project requirement and receive written proposals.',
       'We are an introduction service. We are not a party to any agreement between a client and a professional, we do not employ professionals, and we do not supervise, guarantee or take responsibility for any design, construction or other work.',
     ],
   ],
   [
-    '2. Who can use UrDesigner',
+    '2. Who can use UR DESIGNER',
     [
       'You must be at least 18 years old and able to enter into a binding contract under Indian law. You must give accurate information, including a mobile number you control, and keep your login details private.',
       'One person or practice may hold one professional account. Your role (client or professional) is fixed once your account is created.',
@@ -133,7 +226,7 @@ const TERMS: [string, string[]][] = [
     '3. Enquiries and proposals',
     [
       'A client may send one project requirement to up to five professionals. Sending an enquiry is free.',
-      'A professional may reply with a written, indicative proposal. Fees and timelines in a proposal are estimates to start a conversation; they are not a binding quote unless both parties later agree in writing outside UrDesigner.',
+      'A professional may reply with a written, indicative proposal. Fees and timelines in a proposal are estimates to start a conversation; they are not a binding quote unless both parties later agree in writing outside UR DESIGNER.',
       'When a client accepts a proposal, both sides can see each other’s name, mobile number and email address. Accepting is an introduction, not a contract to hire. Other professionals who sent proposals on the same project are told the client has chosen someone.',
       'A client may close an enquiry at any time. Professionals who have not been chosen will see that it is closed.',
     ],
@@ -148,9 +241,9 @@ const TERMS: [string, string[]][] = [
   [
     '5. Profiles and content',
     [
-      'Professionals are responsible for everything on their profile. You may only show work you created or have permission to show, and you must describe qualifications and registrations truthfully. A Council of Architecture (COA) number is shown as "provided" until we have checked it; it is not an endorsement.',
+      'Professionals are responsible for everything on their profile. You may only show work you created or have permission to show, and you must describe qualifications and registrations truthfully. A Council of Architecture (CoA) number is shown as "provided" until we have checked it; it is not an endorsement.',
       'Do not put phone numbers, email addresses or social handles inside bios, project descriptions, enquiries or proposals to get around the introduction process. Contact details are shared automatically on acceptance.',
-      'You keep ownership of your content. You give UrDesigner a non-exclusive, royalty-free licence to host, display and resize it to run and promote the platform while your profile is live.',
+      'You keep ownership of your content. You give UR DESIGNER a non-exclusive, royalty-free licence to host, display and resize it to run and promote the platform while your profile is live.',
     ],
   ],
   [
@@ -163,14 +256,14 @@ const TERMS: [string, string[]][] = [
   [
     '7. Liability',
     [
-      'UrDesigner is provided "as is". To the extent allowed by law, we are not liable for the quality, safety, legality or outcome of any work agreed between clients and professionals, or for any indirect or consequential loss. Our total liability to a professional is limited to the amount they paid us for connects in the three months before the claim.',
+      'UR DESIGNER is provided "as is". To the extent allowed by law, we are not liable for the quality, safety, legality or outcome of any work agreed between clients and professionals, or for any indirect or consequential loss. Our total liability to a professional is limited to the amount they paid us for connects in the three months before the claim.',
       'Nothing in these terms limits rights you have under the Consumer Protection Act, 2019 or any other law that cannot be excluded.',
     ],
   ],
   [
     '8. Changes, notices and law',
     [
-      'We may update these terms. We will tell you about material changes by email or in the app before they take effect; continuing to use UrDesigner afterwards means you accept them.',
+      'We may update these terms. We will tell you about material changes by email or in the app before they take effect; continuing to use UR DESIGNER afterwards means you accept them.',
       'These terms are governed by the laws of India. Courts at Ahmedabad, Gujarat have exclusive jurisdiction, subject to any consumer forum you are entitled to use.',
       'Questions or complaints: write to our Grievance Officer at support@urdesigner.in. We acknowledge complaints within 48 hours and aim to resolve them within 15 days.',
     ],
@@ -182,7 +275,7 @@ const PRIVACY: [string, string[]][] = [
     '1. What we collect',
     [
       'Clients: name, mobile number, email address and the project details you write (type, city, size, budget, timeline and description).',
-      'Professionals: name, studio, mobile number, email address, city and cities you work in, qualification, optional COA number, links, photos and portfolio content, and records of connects and payments.',
+      'Professionals: name, studio, mobile number, email address, city and cities you work in, qualification, optional CoA number, links, photos and portfolio content, and records of connects and payments.',
       'Everyone: basic device and usage data (pages viewed, profile views, approximate location from IP) used to keep the service secure and to show professionals how often their profile is viewed.',
     ],
   ],
@@ -202,7 +295,7 @@ const PRIVACY: [string, string[]][] = [
   [
     '4. Who we share it with',
     [
-      'Service providers who help us run UrDesigner (hosting, SMS, email and payment processing), bound by confidentiality. Authorities when the law requires it. A buyer of the business, under the same protections, if UrDesigner is sold or merged.',
+      'Service providers who help us run UR DESIGNER (hosting, SMS, email and payment processing), bound by confidentiality. Authorities when the law requires it. A buyer of the business, under the same protections, if UR DESIGNER is sold or merged.',
     ],
   ],
   [
@@ -221,7 +314,7 @@ const PRIVACY: [string, string[]][] = [
   [
     '7. Contact',
     [
-      'Grievance Officer, UrDesigner — support@urdesigner.in. We will update this policy as the service changes and show the date of the latest version at the top.',
+      'Grievance Officer, UR DESIGNER: support@urdesigner.in. We will update this policy as the service changes and show the date of the latest version at the top.',
     ],
   ],
 ];
@@ -230,13 +323,13 @@ export function LegalPage({ privacy = false }: { privacy?: boolean }) {
   const sections = privacy ? PRIVACY : TERMS;
   return (
     <div className="container section prose">
-      <span className="eyebrow">URDESIGNER</span>
+      <span className="eyebrow">UR DESIGNER</span>
       <h1>{privacy ? 'Privacy policy' : 'Terms of service'}</h1>
       <p className="small muted">Draft for legal review · Last updated 14 October 2026</p>
       <p>
         {privacy
-          ? 'Your contact details, on your terms. This policy explains what UrDesigner collects, why, and the choices you have.'
-          : 'These terms explain how UrDesigner works and what we expect from clients and professionals. By using UrDesigner you agree to them.'}
+          ? 'Your contact details, on your terms. This policy explains what UR DESIGNER collects, why, and the choices you have.'
+          : 'These terms explain how UR DESIGNER works and what we expect from clients and professionals. By using UR DESIGNER you agree to them.'}
       </p>
       {sections.map(([heading, paragraphs]) => (
         <section key={heading}>

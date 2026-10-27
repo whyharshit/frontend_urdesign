@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { MapPin, SlidersHorizontal, X, ArrowRight, Search } from 'lucide-react';
+import { MapPin, SlidersHorizontal, X, ArrowRight, Search, Send } from 'lucide-react';
 import { CITIES, PROFESSIONAL_TYPES, SERVICES } from '../../config/catalog';
 import { useDemo } from '../../hooks/useDemo';
-import { filterProfessionals, SORTS } from '../../lib/rules';
-import { plural, slugify } from '../../lib/format';
+import { filterProfessionals } from '../../lib/rules';
+import { slugify } from '../../lib/format';
 import { ProfessionalCard } from '../../components/professionals/ProfessionalCard';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Field';
@@ -17,14 +17,21 @@ export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const { state } = useDemo();
+  // A client sharing one of their projects only sees professionals who work in its city.
+  const sharing = state.requirements.find(
+    (r) =>
+      r.id === params.get('requirement') &&
+      !r.closedAt &&
+      !!state.session.client &&
+      r.client?.phone === state.session.client.phone,
+  );
   const filters: SearchFilters = {
-    city: pathCity || params.get('city') || '',
+    city: sharing?.city || pathCity || params.get('city') || '',
     type: params.get('type') || '',
     service: params.get('service') || '',
     experience: params.get('experience') || '',
     q: params.get('q') || '',
     projectType: params.get('projectType') || '',
-    sort: params.get('sort') || 'active',
   };
   const [query, setQuery] = useState(filters.q);
   useEffect(() => setQuery(filters.q), [filters.q]);
@@ -36,19 +43,22 @@ export function SearchPage() {
     return () => clearTimeout(timer);
   }, [query]);
   const [refine, setRefine] = useState(!!(filters.type || filters.service || filters.experience));
+  // On phones every filter lives in one sheet behind a single "Filters" button.
+  const [sheet, setSheet] = useState(false);
+  useEffect(() => {
+    if (!sheet) return;
+    const close = (e: KeyboardEvent) => e.key === 'Escape' && setSheet(false);
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [sheet]);
   const results = filterProfessionals(state.providers, filters);
-  const published = state.providers.filter((p) => p.status === 'published');
-  // Only cities where someone actually works, so the list never offers an empty choice.
-  const cities = CITIES.filter((c) =>
-    published.some((p) => [p.city, ...(p.workCities || [])].some((w) => slugify(w) === slugify(c))),
-  );
   const city = CITIES.find((c) => slugify(c) === slugify(filters.city));
   if (pathCity && !city)
     return (
       <div className="container section">
         <EmptyState
           title="We don’t cover this city yet."
-          description={`There’s no city called “${pathCity.replaceAll('-', ' ')}” on UrDesigner. Browse professionals across India instead.`}
+          description={`UR DESIGNER is in ${CITIES.join(', ')} for now. Browse professionals in these cities instead.`}
           to={withRequirement('/architects')}
           action="See all professionals"
         />
@@ -65,14 +75,9 @@ export function SearchPage() {
   const requestedPage = Number(params.get('page'));
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const pages = Math.ceil(results.length / 20);
-  const filtered = !!(
-    filters.city ||
-    filters.type ||
-    filters.service ||
-    filters.experience ||
-    filters.q ||
-    filters.projectType
-  );
+  const extra = [filters.type, filters.service, filters.experience].filter(Boolean).length;
+  const active = extra + (filters.projectType ? 1 : 0) + (city && !sharing ? 1 : 0);
+  const filtered = !!(active || filters.q);
   return (
     <>
       <section className="discovery-intro">
@@ -90,6 +95,21 @@ export function SearchPage() {
         </div>
       </section>
       <section className="container search-content">
+        {sharing && (
+          <div className="sharing-bar" role="status">
+            <Send size={17} />
+            <p>
+              <strong>Sharing: {sharing.title}</strong>
+              <span>
+                Professionals who work in {sharing.city}. Open a profile and send your project from
+                there.
+              </span>
+            </p>
+            <Link className="text-link" to="/my-enquiries">
+              Stop sharing
+            </Link>
+          </div>
+        )}
         <form
           className="filter-bar"
           role="search"
@@ -113,119 +133,145 @@ export function SearchPage() {
               }}
             />
           </div>
-          <div className="city-filter">
-            <MapPin size={19} />
-            <Select
-              label="Project city"
-              value={filters.city ? slugify(filters.city) : ''}
-              onChange={(e) => {
-                const next = new URLSearchParams(params);
-                next.delete('city');
-                next.delete('page');
-                const query = next.toString();
-                navigate(
-                  `/architects${e.target.value ? '/' + e.target.value : ''}${query ? '?' + query : ''}`,
-                );
-              }}
-            >
-              <option value="">All cities</option>
-              {city && !cities.includes(city) && <option value={slugify(city)}>{city}</option>}
-              {cities.map((c) => (
-                <option key={c} value={slugify(c)}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <Select
-            label="Project type"
-            value={filters.projectType}
-            onChange={(e) => setFilter('projectType', e.target.value)}
-          >
-            <option value="">Residential & commercial</option>
-            <option value="residential">Residential</option>
-            <option value="commercial">Commercial</option>
-          </Select>
-          <Select
-            label="Sort by"
-            value={filters.sort}
-            onChange={(e) => setFilter('sort', e.target.value === 'active' ? '' : e.target.value)}
-          >
-            {SORTS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
           <Button
             type="button"
             variant="secondary"
-            aria-expanded={refine}
-            onClick={() => setRefine(!refine)}
+            className="filters-toggle"
+            aria-expanded={sheet}
+            aria-controls="filter-controls"
+            onClick={() => setSheet(true)}
           >
             <SlidersHorizontal size={17} />
-            More filters{' '}
-            {filters.type || filters.service || filters.experience ? (
-              <span className="filter-dot" />
-            ) : null}
+            Filters{active ? ` (${active})` : ''}
           </Button>
-          {filtered && (
-            <Link className="text-link clear-filters" to={withRequirement('/architects')}>
-              <X size={15} />
-              Clear filters
-            </Link>
-          )}
-        </form>
-        {refine && (
-          <div className="refine-grid">
-            {[
-              {
-                key: 'type' as const,
-                label: 'Professional type',
-                values: PROFESSIONAL_TYPES.map((t) => [slugify(t), t]),
-              },
-              {
-                key: 'service' as const,
-                label: 'Service',
-                values: SERVICES.map((s) => [slugify(s), s]),
-              },
-              {
-                key: 'experience' as const,
-                label: 'Years of experience',
-                values: ['0-2', '3-5', '6-10', '10+'].map((x) => [
-                  x,
-                  x.replace('-', '–') + ' years',
-                ]),
-              },
-            ].map((group) => (
+          <div
+            id="filter-controls"
+            className={`filter-controls ${sheet ? 'is-open' : ''}`}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSheet(false);
+            }}
+          >
+            <div className="filter-sheet">
+              <div className="filter-sheet-head">
+                <h2>Filters</h2>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label="Close filters"
+                  onClick={() => setSheet(false)}
+                >
+                  <X size={20} />
+                </Button>
+              </div>
+              {sharing ? (
+                <p className="city-locked">
+                  <MapPin size={17} /> {sharing.city}
+                </p>
+              ) : (
+                <div className="city-filter">
+                  <MapPin size={19} />
+                  <Select
+                    label="Project city"
+                    value={city ? slugify(city) : ''}
+                    onChange={(e) => {
+                      const next = new URLSearchParams(params);
+                      next.delete('city');
+                      next.delete('page');
+                      const query = next.toString();
+                      navigate(
+                        `/architects${e.target.value ? '/' + e.target.value : ''}${query ? '?' + query : ''}`,
+                      );
+                    }}
+                  >
+                    <option value="">All cities</option>
+                    {CITIES.map((c) => (
+                      <option key={c} value={slugify(c)}>
+                        {c}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
               <Select
-                key={group.key}
-                label={group.label}
-                value={filters[group.key]}
-                onChange={(e) => setFilter(group.key, e.target.value)}
+                label="Project type"
+                value={filters.projectType}
+                onChange={(e) => setFilter('projectType', e.target.value)}
               >
-                <option value="">Any</option>
-                {group.values
-                  .filter(([value]) => value === filters[group.key] || has(group.key, value))
-                  .map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
+                <option value="">Residential & commercial</option>
+                <option value="residential">Residential</option>
+                <option value="commercial">Commercial</option>
               </Select>
-            ))}
+              <Button
+                type="button"
+                variant="secondary"
+                className="more-filters"
+                aria-expanded={refine}
+                onClick={() => setRefine(!refine)}
+              >
+                <SlidersHorizontal size={17} />
+                More filters {extra ? <span className="filter-dot" /> : null}
+              </Button>
+              {filtered && (
+                <Link
+                  className="text-link clear-filters"
+                  to={withRequirement('/architects')}
+                  onClick={() => setSheet(false)}
+                >
+                  <X size={15} />
+                  Clear filters
+                </Link>
+              )}
+              {(refine || sheet) && (
+                <div className="refine-grid">
+                  {[
+                    {
+                      key: 'type' as const,
+                      label: 'Professional type',
+                      values: PROFESSIONAL_TYPES.map((t) => [slugify(t), t]),
+                    },
+                    {
+                      key: 'service' as const,
+                      label: 'Service',
+                      values: SERVICES.map((s) => [slugify(s), s]),
+                    },
+                    {
+                      key: 'experience' as const,
+                      label: 'Years of experience',
+                      values: ['0-2', '3-5', '6-10', '10+'].map((x) => [
+                        x,
+                        x.replace('-', ' to ') + ' years',
+                      ]),
+                    },
+                  ].map((group) => (
+                    <Select
+                      key={group.key}
+                      label={group.label}
+                      value={filters[group.key]}
+                      onChange={(e) => setFilter(group.key, e.target.value)}
+                    >
+                      <option value="">Any</option>
+                      {group.values
+                        .filter(([value]) => value === filters[group.key] || has(group.key, value))
+                        .map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                    </Select>
+                  ))}
+                </div>
+              )}
+              <Button type="button" className="filter-sheet-done" onClick={() => setSheet(false)}>
+                Show professionals
+              </Button>
+            </div>
           </div>
-        )}
+        </form>
         <div className="results-heading">
           <p>
-            <strong>{plural(results.length, 'professional')}</strong>
-            {city ? ` in ${city}` : ' to discover'}
+            <strong>{city ? `Professionals in ${city}` : 'Professionals to discover'}</strong>
             {filters.q ? ` matching “${filters.q}”` : ''}
           </p>
-          <span>
-            Sorted by{' '}
-            {SORTS.find(([v]) => v === filters.sort)?.[1].toLowerCase() || 'recently active'}
-          </span>
         </div>
         {results.length ? (
           <div className="results-list">
@@ -261,12 +307,14 @@ export function SearchPage() {
             ))}
           </nav>
         )}
-        <div className="search-bottom">
-          <span>Are you an architect or interior designer?</span>
-          <Link to="/join">
-            Join as a professional <ArrowRight size={16} />
-          </Link>
-        </div>
+        {!state.session.professional && (
+          <div className="search-bottom">
+            <span>Are you an architect or interior designer?</span>
+            <Link to="/join">
+              Join as a professional <ArrowRight size={16} />
+            </Link>
+          </div>
+        )}
       </section>
     </>
   );

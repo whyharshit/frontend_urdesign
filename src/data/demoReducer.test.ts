@@ -155,7 +155,7 @@ describe('discovery and publishing', () => {
     });
     expect(result.map((p) => p.id)).toEqual(['p1']);
     expect(
-      filterProfessionals(createSeedState().providers, { type: 'other-design-professional' }).map(
+      filterProfessionals(createSeedState().providers, { type: 'landscape-architect' }).map(
         (p) => p.id,
       ),
     ).toEqual(['p6']);
@@ -172,6 +172,11 @@ describe('discovery and publishing', () => {
   });
   it('blocks duplicate and sixth sends even when called directly', () => {
     let state = createSeedState();
+    // Everyone takes work in Ahmedabad here, so only the duplicate and limit rules apply.
+    state = {
+      ...state,
+      providers: state.providers.map((p) => ({ ...p, workCities: ['Ahmedabad'] })),
+    };
     const requirement = { ...state.requirements[0], id: 'fresh' };
     for (const providerId of ['p1', 'p2', 'p3', 'p4', 'p5'])
       state = demoReducer(state, {
@@ -268,10 +273,30 @@ describe('feedback round: accounts, closing, accepting and formatting', () => {
       'p5',
       'p6',
     ]);
-    expect(filterProfessionals(providers, { city: 'vadodara' }).map((p) => p.id)).toEqual([
-      'p1',
-      'p6',
+    expect(filterProfessionals(providers, { city: 'mumbai' }).map((p) => p.id)).toEqual([
+      'p3',
+      'p4',
     ]);
+  });
+  it('only sends a project to professionals who work in its city', () => {
+    const state = createSeedState();
+    const requirement = { ...state.requirements[0], id: 'city' };
+    expect(requirement.city).toBe('Ahmedabad');
+    // p4 is based in Mumbai: blocked directly and when reusing a saved requirement.
+    expect(
+      demoReducer(state, { type: 'contact', requirement, providerId: 'p4', id: 'x', date }),
+    ).toBe(state);
+    expect(canContact(state, 'r1', 'p4')).toMatch(/doesn’t take work in Ahmedabad/);
+    const added = demoReducer(
+      {
+        ...state,
+        providers: state.providers.map((p) =>
+          p.id === 'p4' ? { ...p, workCities: ['Ahmedabad'] } : p,
+        ),
+      },
+      { type: 'contact', requirement, providerId: 'p4', id: 'y', date },
+    );
+    expect(added.enquiries.some((e) => e.id === 'y')).toBe(true);
   });
   it('formats experience, plurals, names and units for people', () => {
     expect(experienceLabel(0)).toBe('New practice');

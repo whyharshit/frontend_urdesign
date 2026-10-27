@@ -56,9 +56,15 @@ export function PublicLayout() {
       </a>
       <div className="announcement">
         Good spaces start with the right people.
-        <Link to="/join">
-          Join as a professional <ArrowUpRight size={13} />
-        </Link>
+        {professional ? (
+          <Link to="/dashboard">
+            Your workspace <ArrowUpRight size={13} />
+          </Link>
+        ) : (
+          <Link to="/join">
+            Join as a professional <ArrowUpRight size={13} />
+          </Link>
+        )}
       </div>
       <header className="site-header">
         <div className="container header-inner">
@@ -147,9 +153,15 @@ export function PublicLayout() {
           </div>
           <div>
             <h4>For professionals</h4>
-            <Link to="/join">Join as a professional</Link>
-            <Link to="/login">Professional log in</Link>
-            <Link to="/dashboard/connects">About connects</Link>
+            {professional ? (
+              <Link to="/dashboard">Your workspace</Link>
+            ) : (
+              <>
+                <Link to="/join">Join as a professional</Link>
+                <Link to="/login">Professional log in</Link>
+              </>
+            )}
+            <Link to="/connects">How connects work</Link>
           </div>
           <div className="footer-note">
             <span className="eyebrow">A PLACE FOR GOOD DESIGN</span>
@@ -164,7 +176,7 @@ export function PublicLayout() {
           </div>
         </div>
         <div className="container footer-bottom">
-          <span>© 2026 UrDesigner. Made for spaces. Built around people.</span>
+          <span>© 2026 UR DESIGNER. Made for spaces. Built around people.</span>
           <div>
             <Link to="/terms">Terms</Link>
             <Link to="/privacy">Privacy</Link>

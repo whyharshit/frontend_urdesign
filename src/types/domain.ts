@@ -22,7 +22,13 @@ export interface Project {
   area: string;
   description: string;
   images: string[];
+  /** Optional caption and alt text, in the same order as `images`. */
+  photoInfo?: PhotoInfo[];
   status: 'Completed' | 'Ongoing' | 'Concept';
+}
+export interface PhotoInfo {
+  caption: string;
+  alt: string;
 }
 // Public DTO deliberately has no phone, email, website or social-link values.
 export interface Professional {
@@ -130,7 +136,7 @@ export interface Payment {
   reason?: string;
 }
 export interface DemoState {
-  version: 3;
+  version: 4;
   /** The signed-in professional's own practice: the sample studio until someone signs up. */
   ownId: string;
   providers: Professional[];
@@ -155,5 +161,4 @@ export interface SearchFilters {
   experience: string;
   q: string;
   projectType: string;
-  sort: string;
 }

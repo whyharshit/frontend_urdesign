@@ -78,7 +78,6 @@ export const seedProviders: Professional[] = [
     completeness: 98,
     lastActive: '2026-09-26',
     coaNumber: 'CA/2016/78231',
-    workCities: ['Gandhinagar', 'Vadodara'],
   },
   {
     id: 'p2',
@@ -129,13 +128,13 @@ export const seedProviders: Professional[] = [
   },
   {
     id: 'p3',
-    slug: 'form-and-field-pune',
+    slug: 'form-and-field-mumbai',
     name: 'Kabir Desai',
     studio: 'Form & Field',
     type: 'Architect',
-    city: 'Pune',
+    city: 'Mumbai',
     years: 12,
-    qualification: 'B.Arch, University of Pune',
+    qualification: 'B.Arch, Sir J.J. College of Architecture',
     bio: 'Architecture shaped by place. We work with light, landscape and local materials to build enduring spaces with a lighter footprint.',
     initials: 'FF',
     color: '#ddd2c9',
@@ -156,14 +155,14 @@ export const seedProviders: Professional[] = [
     ],
     projects: [
       project('pr6', 'Courtyard house', 'architecture', {
-        location: 'Pune',
+        location: 'Mumbai',
         year: 2024,
         area: '5,200 sq ft',
         description:
           'Four wings around a planted courtyard, built in exposed brick with a roof that collects monsoon rain.',
       }),
       project('pr7', 'Between the trees', 'house', {
-        location: 'Pune',
+        location: 'Mumbai',
         year: 2022,
         area: '3,800 sq ft',
         description:
@@ -263,11 +262,11 @@ export const seedProviders: Professional[] = [
   },
   {
     id: 'p6',
-    slug: 'studio-mitti-vadodara',
+    slug: 'studio-mitti-ahmedabad',
     name: 'Isha Patel',
     studio: 'Studio Mitti',
-    type: 'Other Design Professional',
-    city: 'Vadodara',
+    type: 'Landscape Architect',
+    city: 'Ahmedabad',
     years: 3,
     qualification: 'M.Des, Landscape Design',
     bio: 'Gardens, courtyards and outdoor spaces designed to grow with you. We bring a native, seasonal approach to landscape and everyday nature.',
@@ -285,7 +284,6 @@ export const seedProviders: Professional[] = [
     projects: [
       project('pr10', 'A green pause', 'house', {
         type: 'Landscape',
-        location: 'Vadodara',
         year: 2024,
         area: '26,000 sq ft',
         description:
@@ -343,7 +341,7 @@ function recentViews(count: number) {
 
 export function createSeedState(): DemoState {
   return {
-    version: 3,
+    version: 4,
     ownId: OWN_PROVIDER_ID,
     session: { client: null, professional: false, admin: false },
     saved: [],
@@ -365,7 +363,7 @@ export function createSeedState(): DemoState {
         service: 'Residential Interior Design',
         description:
           'We are moving into a three-bedroom apartment and would love a warm, welcoming home with natural materials, plenty of storage and space for our family to spend time together.',
-        budget: '₹10–20 lakh',
+        budget: '₹10 to 20 lakh',
         timeline: 'Within 3 months',
         size: '1,850 sq ft',
         createdAt: '2026-09-26T10:00:00Z',
@@ -379,7 +377,7 @@ export function createSeedState(): DemoState {
         service: 'Space Planning',
         description:
           'We need a functional layout for our new apartment, including a home office, an open living and dining area, and improved natural light.',
-        budget: '₹5–10 lakh',
+        budget: '₹5 to 10 lakh',
         timeline: 'Within 1 month',
         size: '1,200 sq ft',
         createdAt: '2026-09-25T10:00:00Z',
@@ -422,7 +420,7 @@ export function createSeedState(): DemoState {
           '3D views of key spaces',
         ],
         band: 'C',
-        timeline: '8–10 weeks',
+        timeline: '8 to 10 weeks',
         fee: '₹65,000',
         cost: 300,
         flagged: false,

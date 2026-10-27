@@ -24,7 +24,18 @@ export function ProfilePage() {
       });
     }
   }, [ready, professional?.id, professional?.status, dispatch]);
-  if (!professional || professional.status !== 'published')
+  if (!professional)
+    return (
+      <div className="container section">
+        <EmptyState
+          title="Profile not found."
+          description="There’s no profile at this address. Check the link, or find a professional instead."
+          to="/architects"
+          action="Find a professional"
+        />
+      </div>
+    );
+  if (professional.status !== 'published')
     return (
       <div className="container section">
         <EmptyState
@@ -88,7 +99,7 @@ function Lightbox({
         if (e.target === ref.current) onClose();
       }}
     >
-      <img src={images[index]} alt={`${title} — photo ${index + 1} of ${images.length}`} />
+      <img src={images[index]} alt={`${title}, photo ${index + 1} of ${images.length}`} />
       <button type="button" className="lightbox-close" aria-label="Close" onClick={onClose}>
         <X />
       </button>
@@ -122,7 +133,7 @@ function Lightbox({
 export function ProjectPage() {
   const withRequirement = useRequirementLink();
   const { slug, projectId } = useParams();
-  const { state } = useDemo();
+  const { state, ready } = useDemo();
   const [active, setActive] = useState(0);
   const [zoom, setZoom] = useState(false);
   useEffect(() => setActive(0), [projectId]);
@@ -160,9 +171,11 @@ export function ProjectPage() {
             </Link>
           </p>
         </div>
-        <ButtonLink to={withRequirement(`/enquiry/${slug}`)}>
-          Send enquiry <ArrowUpRight size={17} />
-        </ButtonLink>
+        {!(ready && state.session.professional && professional.id === state.ownId) && (
+          <ButtonLink to={withRequirement(`/enquiry/${slug}`)}>
+            Send enquiry <ArrowUpRight size={17} />
+          </ButtonLink>
+        )}
       </div>
       <button
         type="button"
@@ -173,12 +186,15 @@ export function ProjectPage() {
         <img
           className="project-detail-image"
           src={project.images[active] || project.images[0]}
-          alt={`${project.title} — view ${active + 1}`}
+          alt={project.photoInfo?.[active]?.alt || `${project.title}, view ${active + 1}`}
         />
         <span className="image-arrow">
           <Expand size={17} />
         </span>
       </button>
+      {project.photoInfo?.[active]?.caption && (
+        <p className="photo-caption">{project.photoInfo[active].caption}</p>
+      )}
       <div className="project-caption">
         <span>
           {[project.location, project.year, project.area && areaLabel(project.area)]

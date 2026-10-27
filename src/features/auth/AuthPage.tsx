@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { Checkbox, Input } from '../../components/ui/Field';
+import { ConsentBoxes, Input } from '../../components/ui/Field';
 import { Button, ButtonLink } from '../../components/ui/Button';
 import { DemoNotice } from '../../components/ui/DemoNotice';
 import { Notice } from '../../components/ui/Feedback';
@@ -155,10 +155,7 @@ export function AuthPage({ mode }: { mode: 'join' | 'login' | 'reset' }) {
                     maxLength={30}
                     hint="Both professionals earn 20 connects after the referred profile is published."
                   />
-                  <Checkbox required>
-                    I agree to the <Link to="/terms">Terms</Link> and{' '}
-                    <Link to="/privacy">Privacy Policy</Link>.
-                  </Checkbox>
+                  <ConsentBoxes />
                 </>
               )}
               {mode === 'login' && (

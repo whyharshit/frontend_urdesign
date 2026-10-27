@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { MapPin, ArrowUpRight, LockKeyhole, BadgeCheck, Flag, Link2, Globe } from 'lucide-react';
-import { Avatar, SaveButton } from './ProfessionalCard';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { MapPin, ArrowUpRight, LockKeyhole, Flag, Eye } from 'lucide-react';
+import { Avatar, SaveButton, portfolioImages } from './ProfessionalCard';
 import { Button, ButtonLink } from '../ui/Button';
 import { ProjectCard } from '../projects/ProjectCard';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -10,20 +11,71 @@ import { experienceLabel, servicePrice, uid } from '../../lib/format';
 import type { Professional } from '../../types/domain';
 import { useRequirementLink } from '../../hooks/useRequirementLink';
 import { useDemo } from '../../hooks/useDemo';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { REPORT_REASONS } from '../../config/catalog';
 
-const linkLabel = (url: string) => {
+/** "Website", "Instagram", …: the kind of link, never the address itself. */
+export const linkLabel = (url: string) => {
   try {
     const host = new URL(url).hostname.replace(/^www\./, '');
     if (host.includes('instagram')) return 'Instagram';
     if (host.includes('linkedin')) return 'LinkedIn';
     if (host.includes('behance')) return 'Behance';
     if (host.includes('pinterest')) return 'Pinterest';
-    return host;
+    return 'Website';
   } catch {
-    return url;
+    return 'Website';
   }
 };
+
+/** Cover photo plus portfolio photos, advancing on their own; hover or focus pauses them. */
+function CoverSlideshow({ images, alt }: { images: string[]; alt: string }) {
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const reduced = usePrefersReducedMotion();
+  useEffect(() => {
+    if (paused || reduced || images.length < 2) return;
+    const timer = setTimeout(() => setActive((i) => (i + 1) % images.length), 4500);
+    return () => clearTimeout(timer);
+  }, [active, paused, reduced, images.length]);
+  if (!images.length) return <span className="image-placeholder" aria-hidden="true" />;
+  return (
+    <div
+      className="cover-slideshow"
+      aria-roledescription="carousel"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      {images.map((src, i) => (
+        <img
+          key={src}
+          src={src}
+          className={i === active ? 'is-active' : ''}
+          alt={i === active ? alt : ''}
+          aria-hidden={i !== active}
+          loading={i === 0 ? 'eager' : 'lazy'}
+        />
+      ))}
+      {images.length > 1 && (
+        <div className="cover-dots" aria-label="Cover photos">
+          {images.map((src, i) => (
+            <button
+              key={src}
+              type="button"
+              aria-label={`Show photo ${i + 1} of ${images.length}`}
+              aria-pressed={i === active}
+              onClick={() => setActive(i)}
+            >
+              <span />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Shared by the public profile and the professional's publish preview. */
 export function ProfileContent({
@@ -34,20 +86,32 @@ export function ProfileContent({
   preview?: boolean;
 }) {
   const withRequirement = useRequirementLink();
-  const { dispatch } = useDemo();
+  const { state, dispatch, ready } = useDemo();
+  // A professional looking at their own public page sees it as clients do, minus the buttons
+  // that only make sense for clients.
+  const own = ready && state.session.professional && p.id === state.ownId;
+  const client = !preview && !own;
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
-  const cover = p.cover || p.projects[0]?.images[0];
-  const links = (p.links || []).filter(Boolean);
+  const covers = [...new Set([p.cover, ...portfolioImages(p)].filter(Boolean) as string[])].slice(
+    0,
+    6,
+  );
+  const links = [...new Set((p.links || []).filter(Boolean).map(linkLabel))];
   return (
     <>
+      {own && !preview && (
+        <div className="own-profile-bar" role="status">
+          <Eye size={17} />
+          <p>This is your public profile, as clients see it.</p>
+          <Link className="text-link" to="/dashboard/profile">
+            Edit profile
+          </Link>
+        </div>
+      )}
       <div className="profile-cover">
-        {cover ? (
-          <img src={cover} alt={`Selected work by ${p.studio || p.name}`} />
-        ) : (
-          <span className="image-placeholder" aria-hidden="true" />
-        )}
+        <CoverSlideshow images={covers} alt={`Selected work by ${p.studio || p.name}`} />
       </div>
       <div className="profile-header">
         <Avatar professional={p} large />
@@ -63,17 +127,14 @@ export function ProfileContent({
             {p.coaNumber && (
               <>
                 <span>·</span>
-                <span
-                  className="coa-badge"
-                  title="Self-declared. UrDesigner has not yet checked the COA register."
-                >
-                  <BadgeCheck size={14} /> COA number provided
+                <span title="Self-declared. UR DESIGNER has not yet checked the CoA register.">
+                  CoA number provided
                 </span>
               </>
             )}
           </p>
         </div>
-        {!preview && (
+        {client && (
           <div className="profile-header-actions">
             <SaveButton professional={p} />
             <ButtonLink to={withRequirement(`/enquiry/${p.slug}`)}>
@@ -118,7 +179,7 @@ export function ProfileContent({
               ))}
             </div>
           </section>
-          {!preview && (
+          {client && (
             <div className="button-row">
               <div>
                 <h3>Have a space in mind?</h3>
@@ -141,9 +202,7 @@ export function ProfileContent({
                 ['Based in', p.city],
                 ...(p.workCities?.length ? [['Also takes work in', p.workCities.join(', ')]] : []),
                 ['Languages', p.languages.filter(Boolean).join(', ') || 'Not provided'],
-                ...(p.coaNumber
-                  ? [['COA registration', `${p.coaNumber} (provided, not yet checked)`]]
-                  : []),
+                ...(p.coaNumber ? [['CoA registration', 'Number provided, not yet checked']] : []),
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
@@ -152,20 +211,9 @@ export function ProfileContent({
               ))}
             </dl>
             {links.length > 0 && (
-              <div className="profile-links">
-                {links.map((url) => (
-                  <a
-                    key={url}
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer nofollow"
-                    className="text-link"
-                  >
-                    {linkLabel(url) === 'Instagram' ? <Link2 size={15} /> : <Globe size={15} />}
-                    {linkLabel(url)}
-                  </a>
-                ))}
-              </div>
+              <p className="profile-links small">
+                <LockKeyhole size={14} /> Shared when you accept: {links.join(' · ')}
+              </p>
             )}
           </div>
           <div className="panel">
@@ -175,20 +223,20 @@ export function ProfileContent({
               Mobile and email are shared when you accept a proposal. Your contact details stay
               private until then, too.
             </p>
-            {!preview && (
+            {client && (
               <ButtonLink variant="secondary" to={withRequirement(`/enquiry/${p.slug}`)}>
                 Tell us about your project
               </ButtonLink>
             )}
           </div>
-          {!preview && (
+          {client && (
             <Button variant="ghost" className="report-link" onClick={() => setReporting(true)}>
               <Flag size={14} /> Report this profile
             </Button>
           )}
         </aside>
       </div>
-      {!preview && (
+      {client && (
         <ConfirmDialog
           open={reporting}
           title="Report this profile"
@@ -208,7 +256,7 @@ export function ProfileContent({
             });
             setReason('');
             setDetails('');
-            toast('Thanks — our team will review this profile');
+            toast('Thanks. Our team will review this profile.');
           }}
         >
           <div className="stack">

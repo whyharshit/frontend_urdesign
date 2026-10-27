@@ -7,7 +7,7 @@ import type {
   Payment,
   Report,
 } from '../types/domain';
-import { canContact, publishChecks } from '../lib/rules';
+import { canContact, publishChecks, servesCity } from '../lib/rules';
 import { FEE_BANDS, CONNECT_PACKS } from '../config/catalog';
 import { blankProfessional, seedProviders } from './seed';
 import { initialsOf } from '../lib/format';
@@ -101,7 +101,8 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
     }
     case 'contact': {
       if (canContact(state, action.requirement.id, action.providerId)) return state;
-      if (!state.providers.some((p) => p.id === action.providerId && p.status === 'published'))
+      const provider = state.providers.find((p) => p.id === action.providerId);
+      if (provider?.status !== 'published' || !servesCity(provider, action.requirement.city))
         return state;
       const recent = state.enquiries.filter(
         (e) => Date.parse(action.date) - Date.parse(e.sentAt) < 86_400_000,

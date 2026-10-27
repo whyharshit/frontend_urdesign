@@ -33,7 +33,12 @@ import {
   AdminReports,
   AdminLogin,
 } from '../features/admin/AdminPages';
-import { DemoPage, LegalPage, NotFoundPage } from '../features/static/StaticPages';
+import {
+  ConnectsInfoPage,
+  DemoPage,
+  LegalPage,
+  NotFoundPage,
+} from '../features/static/StaticPages';
 import { getPageMetadata } from './metadata';
 
 function NavigationEffects() {
@@ -101,6 +106,7 @@ export function App() {
             <Route path="my-enquiries/saved" element={<SavedProfessionals />} />
             <Route path="my-enquiries/proposal/:enquiryId" element={<ClientProposal />} />
             <Route path="my-enquiries/compare/:requirementId" element={<CompareProposals />} />
+            <Route path="connects" element={<ConnectsInfoPage />} />
             <Route path="terms" element={<LegalPage />} />
             <Route path="privacy" element={<LegalPage privacy />} />
             <Route path="playground" element={<DemoPage />} />

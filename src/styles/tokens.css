@@ -2,7 +2,7 @@
   --brand: #662200;
   --brand-hover: #4d1900;
   --ink: #302b26;
-  --muted: #736c63;
+  --muted: #615a52;
   --paper: #f6f3ed;
   --surface: #f0eee9;
   --white: #f5f2eb;
@@ -121,7 +121,7 @@ html {
 .eyebrow {
   display: block;
   color: var(--brand);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.16em;
   line-height: 1.5;

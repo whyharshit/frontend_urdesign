@@ -5,6 +5,7 @@ import { getPageMetadata } from './app/metadata';
 import { CITIES, SITE_URL } from './config/catalog';
 import { seedProviders } from './data/seed';
 import { slugify } from './lib/format';
+import { servesCity } from './lib/rules';
 
 const escape = (text: string) =>
   text.replace(
@@ -23,7 +24,7 @@ export function render(url: string) {
     ? [
         `<link rel="canonical" href="${escape(canonical)}" />`,
         `<meta property="og:type" content="website" />`,
-        `<meta property="og:site_name" content="UrDesigner" />`,
+        `<meta property="og:site_name" content="UR DESIGNER" />`,
         `<meta property="og:title" content="${title}" />`,
         `<meta property="og:description" content="${description}" />`,
         `<meta property="og:url" content="${escape(canonical)}" />`,
@@ -45,9 +46,7 @@ export function render(url: string) {
 /** Every public, indexable page: home, search (all India and per city), profiles and projects. */
 export function sitemap() {
   const published = seedProviders.filter((p) => p.status === 'published');
-  const cities = CITIES.filter((c) =>
-    published.some((p) => [p.city, ...(p.workCities || [])].some((w) => slugify(w) === slugify(c))),
-  );
+  const cities = CITIES.filter((c) => published.some((p) => servesCity(p, c)));
   const paths = [
     '/',
     '/architects',
@@ -56,6 +55,7 @@ export function sitemap() {
       `/p/${p.slug}`,
       ...p.projects.map((project) => `/p/${p.slug}/project/${project.id}`),
     ]),
+    '/connects',
     '/terms',
     '/privacy',
   ];

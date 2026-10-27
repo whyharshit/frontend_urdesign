@@ -3,18 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowUpRight, ArrowUp, ArrowDown, Trash2, Plus, Send } from 'lucide-react';
 import { useDemo } from '../../hooks/useDemo';
 import { useLocalDraft } from '../../hooks/useLocalDraft';
-import { CONTACT_WARNING, TIMELINE_UNITS } from '../../config/catalog';
+import { CONTACT_WARNING, PROPOSAL_VALID_DAYS, TIMELINE_UNITS } from '../../config/catalog';
 import { DELIVERABLES } from '../../config/deliverables';
 import { bandForFee, hasContactDetails } from '../../lib/rules';
-import {
-  uid,
-  dateLabel,
-  money,
-  plural,
-  joinMeasure,
-  connectValue,
-  connectRate,
-} from '../../lib/format';
+import { uid, dateLabel, money, plural, joinMeasure, connectsLabel } from '../../lib/format';
 import { newestFirst } from './DashboardPage';
 import { PageHeading } from '../../components/ui/PageHeading';
 import { Button, ButtonLink } from '../../components/ui/Button';
@@ -157,9 +149,9 @@ export function EnquiryDetail() {
                 </div>
               </dl>
               <Notice>
-                {proposal.cost} connects spent.{' '}
+                {connectsLabel(proposal.cost)} spent.{' '}
                 {enquiry.status === 'proposal_sent'
-                  ? 'The client is reviewing your proposal.'
+                  ? `The client is reviewing your proposal. It stays valid for ${PROPOSAL_VALID_DAYS} days.`
                   : enquiry.status === 'declined_by_client'
                     ? 'The client chose another direction; half your connects were returned.'
                     : enquiry.status === 'withdrawn'
@@ -308,8 +300,12 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
           </Notice>
         )}
         <Notice>
-          {state.enquiries.filter((e) => e.requirementId === requirement.id).length} professionals
-          have received this requirement. Your proposal is private to this client.
+          {plural(
+            state.enquiries.filter((e) => e.requirementId === requirement.id).length,
+            'professional has',
+            'professionals have',
+          )}{' '}
+          received this requirement. Your proposal is private to this client.
         </Notice>
         <section className="panel stack">
           <h2>How would you approach it?</h2>
@@ -445,16 +441,16 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
           <p className="small">
             {fee
               ? `A ${money(fee)} design fee is band ${band.id} (${band.label}). Bands are set from your fee and never shown to clients.`
-              : 'Enter your design fee above — the connect cost is set from it automatically.'}
+              : 'Enter your design fee above. The connect cost is set from it automatically.'}
           </p>
           <div className="proposal-summary">
             <div>
               <span>Cost to send</span>
-              <strong>{band.cost} connects</strong>
+              <strong>{connectsLabel(band.cost)}</strong>
             </div>
             <div>
-              <span>Value at pack prices</span>
-              <strong>{connectValue(band.cost)}</strong>
+              <span>Valid for</span>
+              <strong>{PROPOSAL_VALID_DAYS} days</strong>
             </div>
             <div>
               <span>Current balance</span>
@@ -462,10 +458,9 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
             </div>
           </div>
           <p className="small">
-            Connects cost {connectRate()} each, depending on the pack you buy. If the client
-            declines, <strong>{Math.ceil(band.cost / 2)} connects</strong> return. If they never
-            reply by the validity date, all <strong>{band.cost}</strong> return. Automated expiry
-            needs the backend.
+            Your proposal is valid for {PROPOSAL_VALID_DAYS} days. If the client declines,{' '}
+            <strong>{Math.ceil(band.cost / 2)} connects</strong> return. If they don’t reply within{' '}
+            {PROPOSAL_VALID_DAYS} days, all <strong>{band.cost}</strong> return.
           </p>
           {shortfall > 0 && (
             <>
@@ -538,12 +533,13 @@ function ProposalForm({ enquiryId }: { enquiryId: string }) {
         }}
       >
         <p>
-          <strong>{band.cost} connects</strong> will be deducted; your remaining balance will be{' '}
-          <strong>{state.balance - band.cost}</strong>.
+          <strong>{connectsLabel(band.cost)}</strong> will be deducted; your remaining balance will
+          be <strong>{state.balance - band.cost}</strong>.
         </p>
         <p>
-          {Math.ceil(band.cost / 2)} connects return if the client declines. A sent proposal cannot
-          be edited or withdrawn.
+          The proposal is valid for {PROPOSAL_VALID_DAYS} days. {Math.ceil(band.cost / 2)} connects
+          return if the client declines, and all {band.cost} if they don’t reply in time. A sent
+          proposal cannot be edited or withdrawn.
         </p>
       </ConfirmDialog>
     </>

@@ -49,7 +49,7 @@ export function DashboardPage() {
           <p>
             {published
               ? 'Keep your portfolio current and your practice in view. Thoughtful work deserves to be discovered.'
-              : `Your profile is hidden from clients. ${missing ? `${plural(missing, 'essential')} left before you can publish.` : 'Everything is ready — publish when you are.'}`}
+              : `Your profile is hidden from clients. ${missing ? `${plural(missing, 'essential')} left before you can publish.` : 'Everything is ready. Publish when you are.'}`}
           </p>
         </div>
         <ButtonLink

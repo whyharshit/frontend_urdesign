@@ -440,7 +440,7 @@ export function AdminLogin() {
         <Brand />
         <ShieldCheck size={28} className="accent" />
         <h1>Admin log in</h1>
-        <p className="small">For the UrDesigner team only.</p>
+        <p className="small">For the UR DESIGNER team only.</p>
         {error && <Notice tone="warning">{error}</Notice>}
         <Input
           label="Admin email"

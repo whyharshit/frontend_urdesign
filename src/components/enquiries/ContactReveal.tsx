@@ -1,5 +1,6 @@
 import { Mail, MessageCircle, Phone, Handshake } from 'lucide-react';
 import { formatPhone, phoneLink, whatsappLink } from '../../lib/format';
+import { linkLabel } from '../professionals/ProfileContent';
 
 /** Shown to both sides once a proposal is accepted: who to call, and how. */
 export function ContactReveal({
@@ -8,21 +9,24 @@ export function ContactReveal({
   email,
   role,
   project,
+  links = [],
 }: {
   name: string;
   phone?: string;
   email?: string;
+  /** A professional's website and social links, released together with phone and email. */
+  links?: string[];
   role: 'professional' | 'client';
   project: string;
 }) {
-  const greeting = `Hi ${name.split(' ')[0]}, this is about "${project}" on UrDesigner.`;
+  const greeting = `Hi ${name.split(' ')[0]}, this is about "${project}" on UR DESIGNER.`;
   return (
     <section className="panel stack-sm contact-reveal">
       <Handshake className="accent" size={26} />
       <h3>You’re ready for a first hello.</h3>
       <p className="small">
         {role === 'professional'
-          ? `Here’s how to reach ${name}. They have your details too — a quick call is a good next step.`
+          ? `Here’s how to reach ${name}. They have your details too, so a quick call is a good next step.`
           : `Here’s how to reach ${name}. They can see your details too and may get in touch first.`}
       </p>
       {phone || email ? (
@@ -52,6 +56,16 @@ export function ContactReveal({
                 </dd>
               </div>
             )}
+            {links.filter(Boolean).map((url) => (
+              <div key={url}>
+                <dt>{linkLabel(url)}</dt>
+                <dd>
+                  <a className="text-link" href={url} target="_blank" rel="noreferrer nofollow">
+                    {url.replace(/^https?:\/\/(www\.)?/, '')}
+                  </a>
+                </dd>
+              </div>
+            ))}
           </dl>
           <div className="button-row">
             {phone && (

@@ -123,7 +123,7 @@ export function ProfessionalCard({
           </p>
           <p className="bio-snippet">{p.bio}</p>
           <div className="tag-list">
-            {p.coaNumber && <span className="tag tag--coa">COA number provided</span>}
+            {p.coaNumber && <span className="tag">CoA number provided</span>}
             {p.services.slice(0, 2).map((s) => (
               <span key={s.id} className="tag">
                 {s.category}

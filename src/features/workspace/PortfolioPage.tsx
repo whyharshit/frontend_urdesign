@@ -12,7 +12,7 @@ import { PROJECT_TYPES, CONTACT_WARNING, AREA_UNITS } from '../../config/catalog
 import { hasContactDetails } from '../../lib/rules';
 import { joinMeasure, splitMeasure, uid } from '../../lib/format';
 import { readDemoImage } from '../../services/demoImages';
-import type { Project } from '../../types/domain';
+import type { PhotoInfo, Project } from '../../types/domain';
 
 export function PortfolioPage() {
   const { profile, update } = useOwnProfile();
@@ -147,12 +147,19 @@ function ProjectEditorForm({ project, onSaved }: { project?: Project; onSaved?: 
     setErrors(failed);
     setBusy(false);
   };
+  // Captions travel with their photo when photos are moved or removed.
+  const info = draft.images.map((_, i) => draft.photoInfo?.[i] || { caption: '', alt: '' });
   const reorder = (index: number, destination: number) => {
     const images = [...draft.images];
+    const photoInfo = [...info];
     const [item] = images.splice(index, 1);
+    const [details] = photoInfo.splice(index, 1);
     images.splice(destination, 0, item);
-    patch({ images });
+    photoInfo.splice(destination, 0, details);
+    patch({ images, photoInfo });
   };
+  const describe = (index: number, values: Partial<PhotoInfo>) =>
+    patch({ photoInfo: info.map((item, i) => (i === index ? { ...item, ...values } : item)) });
   return (
     <>
       <PageHeading
@@ -160,9 +167,12 @@ function ProjectEditorForm({ project, onSaved }: { project?: Project; onSaved?: 
         title={project ? 'Refine your project.' : 'Show what you’ve created.'}
         description="A few considered images can say more than a thousand words."
         action={
-          <ButtonLink variant="secondary" to="/dashboard/portfolio">
-            Back to portfolio
-          </ButtonLink>
+          // During first-time setup there's no portfolio to go back to yet.
+          onSaved ? undefined : (
+            <ButtonLink variant="secondary" to="/dashboard/portfolio">
+              Back to portfolio
+            </ButtonLink>
+          )
         }
       />
       <form
@@ -176,6 +186,7 @@ function ProjectEditorForm({ project, onSaved }: { project?: Project; onSaved?: 
           }
           const saved = {
             ...draft,
+            photoInfo: info.map((item) => ({ caption: item.caption.trim(), alt: item.alt.trim() })),
             title: draft.title.trim(),
             location: draft.location.trim(),
             id: project?.id || uid(),
@@ -298,7 +309,7 @@ function ProjectEditorForm({ project, onSaved }: { project?: Project; onSaved?: 
             <p>
               One good photo of a finished room works better than five taken during construction.
               <br />
-              JPG, PNG or WEBP · Up to 10 MB per file · 1–10 images per project
+              JPG, PNG or WEBP · Up to 10 MB per file · 1 to 10 images per project
             </p>
             <input
               aria-label="Upload project images"
@@ -348,7 +359,21 @@ function ProjectEditorForm({ project, onSaved }: { project?: Project; onSaved?: 
                 onDragEnd={() => setDragging(null)}
               >
                 {i === 0 && <span className="cover-badge">Cover</span>}
-                <img src={src} alt={`Project image ${i + 1}`} draggable={false} />
+                <img src={src} alt={info[i].alt || `Project image ${i + 1}`} draggable={false} />
+                <Input
+                  label={`Caption for photo ${i + 1} (optional)`}
+                  value={info[i].caption}
+                  maxLength={120}
+                  placeholder="e.g. Living room, looking towards the courtyard"
+                  onChange={(e) => describe(i, { caption: e.target.value })}
+                />
+                <Input
+                  label={`Alt text for photo ${i + 1} (optional)`}
+                  value={info[i].alt}
+                  maxLength={160}
+                  hint="Describes the photo for people using screen readers."
+                  onChange={(e) => describe(i, { alt: e.target.value })}
+                />
                 <div className="button-row">
                   <Button
                     variant="ghost"
@@ -382,7 +407,10 @@ function ProjectEditorForm({ project, onSaved }: { project?: Project; onSaved?: 
                     aria-label={`Remove image ${i + 1}`}
                     disabled={busy}
                     onClick={() =>
-                      patch({ images: draft.images.filter((_, index) => index !== i) })
+                      patch({
+                        images: draft.images.filter((_, index) => index !== i),
+                        photoInfo: info.filter((_, index) => index !== i),
+                      })
                     }
                   >
                     <Trash2 size={13} />
@@ -406,9 +434,11 @@ function ProjectEditorForm({ project, onSaved }: { project?: Project; onSaved?: 
             <Upload size={16} />
             Save project
           </Button>
-          <ButtonLink variant="secondary" to="/dashboard/portfolio">
-            Cancel
-          </ButtonLink>
+          {!onSaved && (
+            <ButtonLink variant="secondary" to="/dashboard/portfolio">
+              Cancel
+            </ButtonLink>
+          )}
         </div>
       </form>
     </>

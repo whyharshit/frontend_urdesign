@@ -1,14 +1,7 @@
-import { CONNECT_RATE } from '../config/catalog';
-
 export const money = (amount: number) => `₹${amount.toLocaleString('en-IN')}`;
-/** Rupee value of connects at pack prices, e.g. "₹150–₹236". */
-export const connectValue = (connects: number) => {
-  const low = Math.round(connects * CONNECT_RATE.low);
-  const high = Math.round(connects * CONNECT_RATE.high);
-  return low === high ? money(low) : `${money(low)}–${money(high)}`;
-};
-/** Per-connect price range, e.g. "₹0.75–₹1.18". */
-export const connectRate = () => `₹${CONNECT_RATE.low.toFixed(2)}–₹${CONNECT_RATE.high.toFixed(2)}`;
+/** Connects with their face value, one rupee each: "150 connects (₹150)". */
+export const connectsLabel = (connects: number) =>
+  `${connects.toLocaleString('en-IN')} connects (${money(connects)})`;
 export const slugify = (value: string) =>
   value
     .toLowerCase()

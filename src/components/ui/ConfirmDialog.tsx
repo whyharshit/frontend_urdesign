@@ -20,10 +20,23 @@ export function ConfirmDialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
+  const opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const dialog = ref.current;
-    if (open && dialog && !dialog.open) dialog.showModal();
+    if (open && dialog && !dialog.open) {
+      opener.current = document.activeElement as HTMLElement | null;
+      dialog.showModal();
+    }
     if (!open && dialog?.open) dialog.close();
+    // However it closed (Escape, Cancel, the X), focus goes back to the button that opened it.
+    if (!open && opener.current) {
+      const target = opener.current;
+      opener.current = null;
+      requestAnimationFrame(() => {
+        if (target.isConnected) target.focus();
+        else document.getElementById('main')?.focus();
+      });
+    }
   }, [open]);
   return (
     <dialog
